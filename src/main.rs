@@ -72,7 +72,7 @@ fn main() -> ! {
 
     let mut buffer:[u8;1] = [0xff];
     
-    i2c.write(0x68, &[0x6b, 0x00]).ok();
+    i2c.write(0x68, &[0x6b, 0x01]).ok();
     i2c.write(0x68, &[0x1c, 0x00]).ok();
     i2c.write(0x68, &[0x6c, 0x00]).ok();
     
@@ -83,7 +83,7 @@ fn main() -> ! {
         block!(timer.wait()).unwrap();
         led.set_high().unwrap();
 
-        i2c.write_read(0x68, &[0x43], &mut buffer).ok();
+        i2c.write_read(0x68, &[0x41], &mut buffer).ok();
 
         let mut data= 0xff;
 
@@ -92,9 +92,10 @@ fn main() -> ! {
             data = *i;
         }
 
-        block!(tx.write(data)).ok();
+        block!(tx.write(data as u8)).ok();
 
-        i2c.write_read(0x68, &[0x44], &mut buffer).ok();
+
+        i2c.write_read(0x68, &[0x42], &mut buffer).ok();
 
         let mut data= 0xff;
 

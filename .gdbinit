@@ -9,7 +9,7 @@ define reset
     monitor reset halt
 end
 
-define start
+define run
     continue
 end
 

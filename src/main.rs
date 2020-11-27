@@ -10,7 +10,8 @@ use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
 use stm32f1xx_hal::{pac, prelude::*, timer::Timer, i2c, i2c::BlockingI2c, serial::{Serial, Config}};
 
-mod registers;
+mod mpu6050;
+mod blinky;
 
 #[entry]
 fn main() -> ! {
@@ -36,26 +37,22 @@ fn main() -> ! {
     // Configure gpio C pin 13 as a push-pull output. The `crh` register is passed to the function
     // in order to configure the port. For pins 0-7, crl should be passed instead.
     let mut led = gpiob.pb5.into_push_pull_output(&mut gpiob.crl);
-    let mut PB6 = gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl);
-    let mut PB7 = gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl);
-    let mut pin_TX = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
-    let mut pin_RX = gpioa.pa10;
+    let pb6 = gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl);
+    let pb7 = gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl);
+    let pin_TX = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
+    let pin_RX = gpioa.pa10;
     // Configure the syst timer to trigger an update every second
     let mut timer = Timer::syst(cp.SYST, &clocks).start_count_down(1.hz());
 
-
-    let mut i2c = BlockingI2c::i2c1(
+    let mut mpu6050 = mpu6050::init(
         dp.I2C1,
-        (PB6, PB7),
         &mut afio.mapr,
-        i2c::Mode::standard(100.hz()),
         clocks,
         &mut rcc.apb1,
-        100000,
-        100,
-        100000,
-        100000
+        pb6,
+        pb7
     );
+
 
     let serial = Serial::usart1(
         dp.USART1,
@@ -72,9 +69,6 @@ fn main() -> ! {
 
     let mut buffer:[u8;1] = [0xff];
     
-    i2c.write(0x68, &[0x6b, 0x01]).ok();
-    i2c.write(0x68, &[0x1c, 0x00]).ok();
-    i2c.write(0x68, &[0x6c, 0x00]).ok();
     
 
 
@@ -83,24 +77,22 @@ fn main() -> ! {
         block!(timer.wait()).unwrap();
         led.set_high().unwrap();
 
-        i2c.write_read(0x68, &[0x41], &mut buffer).ok();
+        mpu6050.read(mpu6050::Regs::TEMP_OUT_H.addr(), &mut buffer);
 
         let mut data= 0xff;
 
         for i in buffer.iter() {
-            //data <<= 1;
             data = *i;
         }
 
         block!(tx.write(data as u8)).ok();
 
 
-        i2c.write_read(0x68, &[0x42], &mut buffer).ok();
+        mpu6050.read(mpu6050::Regs::TEMP_OUT_H.addr(), &mut buffer);
 
         let mut data= 0xff;
 
         for i in buffer.iter() {
-            //data <<= 1;
             data = *i;
         }
 

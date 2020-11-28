@@ -1,4 +1,4 @@
-#![deny(unsafe_code)]
+
 #![no_std]
 #![no_main]
 
@@ -7,9 +7,7 @@ use panic_halt as _;
 use nb::block;
 
 use cortex_m_rt::entry;
-use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::serial::Write;
-use stm32f1xx_hal::{pac, prelude::*, timer::Timer, i2c, i2c::BlockingI2c, serial::{Serial, Config}};
+use stm32f1xx_hal::{pac, prelude::*, timer::Timer, serial::Config};
 
 mod mpu6050;
 mod blinky;
@@ -56,20 +54,7 @@ fn main() -> ! {
     );
 
 
-    // let serial = Serial::usart1(
-    //     dp.USART1,
-    //     (pin_TX,pin_RX),
-    //     &mut afio.mapr,
-    //     Config::default().baudrate(9600.bps()),
-    //     clocks,
-    //     &mut rcc.apb2
-    // );
-
-    // let (mut tx, mut rx) = serial.split();
-
-    // block!(tx.write(0x77)).ok();
-
-    let mut PC = inter_PC::init(
+    let mut pc = inter_PC::init(
         dp.USART1,
         pin_TX,
         pin_RX,
@@ -86,9 +71,10 @@ fn main() -> ! {
         block!(timer.wait()).unwrap();
         led.flash();
 
-        // block!(tx.write(b'!')).ok();
 
-        PC.send_str("FUCK YOU!\n");
+        pc.send_str("FUCK YOU!\n");
+
+        pc.send_all_of_mpu6050(&mut mpu6050);
         //block!(tx.write(mpu6050.read(mpu6050::Regs::TEMP_OUT_H.addr()))).ok();
 
     }

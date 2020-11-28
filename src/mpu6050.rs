@@ -6,7 +6,7 @@ use stm32f1xx_hal::gpio::gpiob::{PB6, PB7};
 use stm32f1xx_hal::gpio::{Alternate, OpenDrain};
 
 
-pub struct mpu6050 {
+pub struct MPU6050 {
     i2c: BlockingI2c<
         I2C1,
         (PB6<Alternate<OpenDrain>>,PB7<Alternate<OpenDrain>>)
@@ -20,7 +20,7 @@ pub fn init(
     apb: &mut APB1,
     pb6: PB6<Alternate<OpenDrain>>,
     pb7: PB7<Alternate<OpenDrain>>
-) -> mpu6050 {
+) -> MPU6050 {
     let i2c = BlockingI2c::i2c1(
         i2c,
         (pb6, pb7),
@@ -33,7 +33,7 @@ pub fn init(
         100000,
         100000
     );
-    let mut mpu6050 = mpu6050 {
+    let mut mpu6050 = MPU6050 {
         i2c
     };
 
@@ -45,7 +45,7 @@ pub fn init(
     mpu6050
 }
 
-impl mpu6050 {
+impl MPU6050 {
     pub fn write(&mut self, addr: u8, data: u8) {
         self.i2c.write(
             Regs::SLAVE_ADDR.addr(), 
@@ -63,11 +63,11 @@ impl mpu6050 {
         buffer[0]
     }
 
-    pub fn get_data(&mut self, addr: u8) -> i16 {
+    pub fn get_data(&mut self, addr: u8) -> u16 {
         let data_h = self.read(addr);
         let data_l = self.read(addr + 1);
 
-        ((data_h as i16) << 8) | data_l as i16
+        ((data_h as u16) << 8) | data_l as u16
     }
 
 }

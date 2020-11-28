@@ -8,10 +8,12 @@ use nb::block;
 
 use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::serial::Write;
 use stm32f1xx_hal::{pac, prelude::*, timer::Timer, i2c, i2c::BlockingI2c, serial::{Serial, Config}};
 
 mod mpu6050;
 mod blinky;
+mod inter_PC;
 
 #[entry]
 fn main() -> ! {
@@ -54,50 +56,40 @@ fn main() -> ! {
     );
 
 
-    let serial = Serial::usart1(
+    // let serial = Serial::usart1(
+    //     dp.USART1,
+    //     (pin_TX,pin_RX),
+    //     &mut afio.mapr,
+    //     Config::default().baudrate(9600.bps()),
+    //     clocks,
+    //     &mut rcc.apb2
+    // );
+
+    // let (mut tx, mut rx) = serial.split();
+
+    // block!(tx.write(0x77)).ok();
+
+    let mut PC = inter_PC::init(
         dp.USART1,
-        (pin_TX,pin_RX),
+        pin_TX,
+        pin_RX,
         &mut afio.mapr,
         Config::default().baudrate(9600.bps()),
         clocks,
         &mut rcc.apb2
     );
 
-    let (mut tx, mut rx) = serial.split();
-
-    block!(tx.write(0x77)).ok();
-
-    let mut buffer:[u8;1] = [0xff];
-
     let mut led = blinky::init(pb5);
-    
-    
-
 
     // Wait for the timer to trigger an update and change the state of the LED
     loop {
         block!(timer.wait()).unwrap();
         led.flash();
 
-        mpu6050.read(mpu6050::Regs::TEMP_OUT_H.addr(), &mut buffer);
+        // block!(tx.write(b'!')).ok();
 
-        let mut data= 0xff;
+        PC.send_str("FUCK YOU!\n");
+        //block!(tx.write(mpu6050.read(mpu6050::Regs::TEMP_OUT_H.addr()))).ok();
 
-        for i in buffer.iter() {
-            data = *i;
-        }
-
-        block!(tx.write(data)).ok();
-
-
-        mpu6050.read(mpu6050::Regs::TEMP_OUT_H.addr(), &mut buffer);
-
-        let mut data= 0xff;
-
-        for i in buffer.iter() {
-            data = *i;
-        }
-
-        block!(tx.write(data)).ok();
     }
 }

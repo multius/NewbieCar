@@ -53,6 +53,8 @@ impl mpu6050 {
         self.i2c.write_read(Regs::SLAVE_ADDR.addr(),&[addr], data).ok();
     }
 
+    pub fn get_data(&mut self, addr: u8) {}
+
 }
 
 

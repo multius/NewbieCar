@@ -36,7 +36,7 @@ fn main() -> ! {
 
     // Configure gpio C pin 13 as a push-pull output. The `crh` register is passed to the function
     // in order to configure the port. For pins 0-7, crl should be passed instead.
-    let mut led = gpiob.pb5.into_push_pull_output(&mut gpiob.crl);
+    let pb5 = gpiob.pb5.into_push_pull_output(&mut gpiob.crl);
     let pb6 = gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl);
     let pb7 = gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl);
     let pin_TX = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
@@ -68,6 +68,8 @@ fn main() -> ! {
     block!(tx.write(0x77)).ok();
 
     let mut buffer:[u8;1] = [0xff];
+
+    let mut led = blinky::init(pb5);
     
     
 
@@ -75,18 +77,7 @@ fn main() -> ! {
     // Wait for the timer to trigger an update and change the state of the LED
     loop {
         block!(timer.wait()).unwrap();
-        led.set_high().unwrap();
-
-        mpu6050.read(mpu6050::Regs::TEMP_OUT_H.addr(), &mut buffer);
-
-        let mut data= 0xff;
-
-        for i in buffer.iter() {
-            data = *i;
-        }
-
-        block!(tx.write(data as u8)).ok();
-
+        led.flash();
 
         mpu6050.read(mpu6050::Regs::TEMP_OUT_H.addr(), &mut buffer);
 
@@ -98,7 +89,15 @@ fn main() -> ! {
 
         block!(tx.write(data)).ok();
 
-        block!(timer.wait()).unwrap();
-        led.set_low().unwrap();
+
+        mpu6050.read(mpu6050::Regs::TEMP_OUT_H.addr(), &mut buffer);
+
+        let mut data= 0xff;
+
+        for i in buffer.iter() {
+            data = *i;
+        }
+
+        block!(tx.write(data)).ok();
     }
 }

@@ -72,10 +72,10 @@ fn main() -> ! {
         led.flash();
 
 
-        pc.send_str("FUCK YOU!\n");
+        pc.send_str("\nFROM MPU6050: \n");
+        // pc.send(mpu6050.read(mpu6050::Regs::ACC_REGX_H.addr()));
+        // pc.send(mpu6050.read(mpu6050::Regs::ACC_REGX_H.addr()+1));
 
         pc.send_all_of_mpu6050(&mut mpu6050);
-        //block!(tx.write(mpu6050.read(mpu6050::Regs::TEMP_OUT_H.addr()))).ok();
-
     }
 }

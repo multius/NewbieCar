@@ -5,6 +5,10 @@ use stm32f1xx_hal::afio::MAPR;
 use stm32f1xx_hal::gpio::gpiob::{PB6, PB7};
 use stm32f1xx_hal::gpio::{Alternate, OpenDrain};
 
+static X_GYRO_OFFSET: i16 = -225;
+static Y_GYRO_OFFSET: i16 = 230;
+static Z_GYRO_OFFSET: i16 = 70;
+
 
 pub struct MPU6050 {
     i2c: BlockingI2c<
@@ -37,10 +41,12 @@ pub fn init(
         i2c
     };
 
-    mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x01);
-    mpu6050.write(Regs::ACCEL_CONFIG.addr(), 0x00);
+    mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);
     mpu6050.write(Regs::POWER_MGMT_2.addr(), 0x00);
-    mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x18);
+    mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x07);
+    mpu6050.write(Regs::CONFIG.addr(), 0x00);
+    mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x08);
+    mpu6050.write(Regs::ACCEL_CONFIG.addr(), 0x00);
 
     mpu6050
 }
@@ -63,12 +69,41 @@ impl MPU6050 {
         buffer[0]
     }
 
-    pub fn get_data(&mut self, addr: u8) -> u16 {
+    pub fn get_data(&mut self, addr: u8) -> i16 {
         let data_h = self.read(addr);
         let data_l = self.read(addr + 1);
 
-        ((data_h as u16) << 8) | data_l as u16
+        ((data_h as i16) << 8) | data_l as i16
     }
+
+    pub fn get_temp(&mut self) -> i16 {
+        self.get_data(Regs::TEMP_OUT_H.addr()) / 340 + 36
+    }
+
+    pub fn get_accel_x(&mut self) -> f32 {
+        self.get_data(Regs::ACC_REGX_H.addr()) as f32  / 16384 as f32
+    }
+
+    pub fn get_accel_y(&mut self) -> f32 {
+        self.get_data(Regs::ACC_REGY_H.addr()) as f32  / 16384 as f32
+    }
+
+    pub fn get_accel_z(&mut self) -> f32 {
+        self.get_data(Regs::ACC_REGZ_H.addr()) as f32  / 16384 as f32
+    }
+
+    pub fn get_gyro_x(&mut self) -> i16 {
+        self.get_data(Regs::GYRO_REGX_H.addr()) + X_GYRO_OFFSET
+    }
+
+    pub fn get_gyro_y(&mut self) -> i16 {
+        self.get_data(Regs::GYRO_REGY_H.addr()) + Y_GYRO_OFFSET
+    }
+
+    pub fn get_gyro_z(&mut self) -> i16 {
+        self.get_data(Regs::GYRO_REGZ_H.addr()) + Z_GYRO_OFFSET
+    }
+
 
 }
 
@@ -79,7 +114,7 @@ pub enum Regs {
     /// Slave address of Mpu6050
     SLAVE_ADDR = 0x68,
     /// Internal register to check slave addr
-    WHOAMI = 0x75,
+    //WHOAMI = 0x75,
     /// High Bytle Register Gyro x orientation
     GYRO_REGX_H = 0x43,
     /// High Bytle Register Gyro y orientation
@@ -102,6 +137,10 @@ pub enum Regs {
     ACCEL_CONFIG = 0x1c,
     /// gyro config register
     GYRO_CONFIG = 0x1b,
+    //陀螺仪采样率，典型值： 0x07(125HZ)
+    SMPLRT_DIV = 0x19,
+
+    CONFIG = 0x1a,
 }
 
 impl Regs {

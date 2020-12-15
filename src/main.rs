@@ -64,12 +64,12 @@ fn main() -> ! {
         &mut rcc.apb2
     );
 
-    let mut led = blinky::init(pb5);
+    let mut blink = blinky::init(pb5);
 
     // Wait for the timer to trigger an update and change the state of the LED
     loop {
         block!(timer.wait()).unwrap();
-        led.flash();
+        blink.flash();
 
 
         pc.send_str("\nFROM MPU6050: \n");

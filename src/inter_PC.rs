@@ -140,15 +140,15 @@ impl PC {
         self.send_str("\n");
 
         self.send_str("ACCEL_X: ");
-        self.send_f32(mpu6050.get_accel_x());
+        self.send_i16(mpu6050.get_accel_x());
         self.send_str("\t");
 
         self.send_str("ACCEL_Y: ");
-        self.send_f32(mpu6050.get_accel_y());
+        self.send_i16(mpu6050.get_accel_y());
         self.send_str("\t");
 
         self.send_str("ACCEL_Z: ");
-        self.send_f32(mpu6050.get_accel_z());
+        self.send_i16(mpu6050.get_accel_z());
         self.send_str("\n");
 
         self.send_str("GYRO_X: ");

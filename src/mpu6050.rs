@@ -5,9 +5,9 @@ use stm32f1xx_hal::afio::MAPR;
 use stm32f1xx_hal::gpio::gpiob::{PB6, PB7};
 use stm32f1xx_hal::gpio::{Alternate, OpenDrain};
 
-static X_GYRO_OFFSET: i16 = -225;
-static Y_GYRO_OFFSET: i16 = 230;
-static Z_GYRO_OFFSET: i16 = 70;
+static X_GYRO_OFFSET: i16 = 0;
+static Y_GYRO_OFFSET: i16 = 0;
+static Z_GYRO_OFFSET: i16 = 0;
 
 
 pub struct MPU6050 {
@@ -45,7 +45,7 @@ pub fn init(
     mpu6050.write(Regs::POWER_MGMT_2.addr(), 0x00);
     mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x07);
     mpu6050.write(Regs::CONFIG.addr(), 0x00);
-    mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x08);
+    mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x00);
     mpu6050.write(Regs::ACCEL_CONFIG.addr(), 0x00);
 
     mpu6050
@@ -80,16 +80,16 @@ impl MPU6050 {
         self.get_data(Regs::TEMP_OUT_H.addr()) / 340 + 36
     }
 
-    pub fn get_accel_x(&mut self) -> f32 {
-        self.get_data(Regs::ACC_REGX_H.addr()) as f32  / 16384 as f32
+    pub fn get_accel_x(&mut self) -> i16 {
+        self.get_data(Regs::ACC_REGX_H.addr())// as f32  / 16384 as f32
     }
 
-    pub fn get_accel_y(&mut self) -> f32 {
-        self.get_data(Regs::ACC_REGY_H.addr()) as f32  / 16384 as f32
+    pub fn get_accel_y(&mut self) -> i16 {
+        self.get_data(Regs::ACC_REGY_H.addr())// as f32  / 16384 as f32
     }
 
-    pub fn get_accel_z(&mut self) -> f32 {
-        self.get_data(Regs::ACC_REGZ_H.addr()) as f32  / 16384 as f32
+    pub fn get_accel_z(&mut self) -> i16 {
+        self.get_data(Regs::ACC_REGZ_H.addr())// as f32  / 16384 as f32
     }
 
     pub fn get_gyro_x(&mut self) -> i16 {
@@ -104,7 +104,9 @@ impl MPU6050 {
         self.get_data(Regs::GYRO_REGZ_H.addr()) + Z_GYRO_OFFSET
     }
 
+    pub fn get_angle(&mut self) -> i16 {
 
+    }s
 }
 
 

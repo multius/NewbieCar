@@ -26,7 +26,7 @@ static G_BLINK: Mutex<RefCell<Option<blinky::blink>>> = Mutex::new(RefCell::new(
 unsafe fn TIM2() {
     static mut MPU6050: Option<mpu6050::MPU6050> = None;
     static mut PC: Option<inter_PC::PC> = None;
-    // static mut BLINK: Option<blinky::blink> = None;
+    static mut BLINK: Option<blinky::blink> = None;
 
     let mpu6050 = MPU6050.get_or_insert_with(|| {
         cortex_m::interrupt::free(|cs| {
@@ -42,24 +42,24 @@ unsafe fn TIM2() {
         })
     });
 
-    // let blink = BLINK.get_or_insert_with(|| {
-    //     cortex_m::interrupt::free(|cs| {
-    //         // Move LED pin here, leaving a None in its place
-    //         G_BLINK.borrow(cs).replace(None).unwrap()
-    //     })
-    // });
+    let blink = BLINK.get_or_insert_with(|| {
+        cortex_m::interrupt::free(|cs| {
+            // Move LED pin here, leaving a None in its place
+            G_BLINK.borrow(cs).replace(None).unwrap()
+        })
+    });
 
     pc.send_str("\nFROM MPU6050: \n");
 
     pc.send_all_of_mpu6050(mpu6050);
     
-    // blink.flash();
+    blink.flash();
 }
 
 #[entry]
 fn main() -> ! {
     // Get access to the core peripherals from the cortex-m crate
-    let cp = cortex_m::Peripherals::take().unwrap();
+    //let cp = cortex_m::Peripherals::take().unwrap();
     // Get access to the device specific peripherals from the peripheral access crate
     let dp = pac::Peripherals::take().unwrap();
 
@@ -112,7 +112,7 @@ fn main() -> ! {
         &mut rcc.apb2
     );
 
-    let mut blink = blinky::init(pb5);
+    let blink = blinky::init(pb5);
 
 
     let mut timer = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1).start_count_down(1.hz());

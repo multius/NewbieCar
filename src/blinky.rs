@@ -2,8 +2,10 @@ use stm32f1xx_hal::gpio::gpiob::PB5;
 use stm32f1xx_hal::gpio::{Output, PushPull};
 use embedded_hal::digital::v2::OutputPin;
 
+type LEDPIN = PB5<Output<PushPull>>;
+
 pub struct blink {
-    pin: PB5<Output<PushPull>>,
+    pin: LEDPIN,
     state: bool
 }
 

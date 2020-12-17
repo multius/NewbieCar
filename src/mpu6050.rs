@@ -104,9 +104,9 @@ impl MPU6050 {
         self.get_data(Regs::GYRO_REGZ_H.addr()) + Z_GYRO_OFFSET
     }
 
-    pub fn get_angle(&mut self) -> i16 {
+    // pub fn get_angle(&mut self) -> i16 {
 
-    }s
+    // }
 }
 
 

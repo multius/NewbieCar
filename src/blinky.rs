@@ -4,19 +4,19 @@ use embedded_hal::digital::v2::OutputPin;
 
 type LEDPIN = PB5<Output<PushPull>>;
 
-pub struct blink {
+pub struct Blink {
     pin: LEDPIN,
     state: bool
 }
 
-pub fn init(pin: PB5<Output<PushPull>>) -> blink {
-    blink {
+pub fn init(pin: PB5<Output<PushPull>>) -> Blink {
+    Blink {
         pin,
         state: false
     }
 }
 
-impl blink {
+impl Blink {
     pub fn flash(&mut self) {
         if self.state == false {
             self.pin.set_high().unwrap();

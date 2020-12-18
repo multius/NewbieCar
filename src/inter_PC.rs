@@ -134,33 +134,33 @@ impl PC {
         self.send_str(str);
     }
 
-    pub fn send_all_of_mpu6050(&mut self, mpu6050: &mut MPU6050) {
+    pub fn send_all_of_mpu6050(&mut self, data: mpu6050::Data) {
         self.send_str("TEMP: ");
-        self.send_i16(mpu6050.get_temp());
+        self.send_i16(data.temp);
         self.send_str("\n");
 
         self.send_str("ACCEL_X: ");
-        self.send_i16(mpu6050.get_accel_x());
+        self.send_i16(data.acc_x);
         self.send_str("\t");
 
         self.send_str("ACCEL_Y: ");
-        self.send_i16(mpu6050.get_accel_y());
+        self.send_i16(data.acc_y);
         self.send_str("\t");
 
         self.send_str("ACCEL_Z: ");
-        self.send_i16(mpu6050.get_accel_z());
+        self.send_i16(data.acc_z);
         self.send_str("\n");
 
         self.send_str("GYRO_X: ");
-        self.send_i16(mpu6050.get_gyro_x());
+        self.send_i16(data.gyro_x);
         self.send_str("\t");
 
         self.send_str("GYRO_Y: ");
-        self.send_i16(mpu6050.get_gyro_y());
+        self.send_i16(data.gyro_y);
         self.send_str("\t");
 
         self.send_str("GYRO_Z: ");
-        self.send_i16(mpu6050.get_gyro_z());
+        self.send_i16(data.gyro_z);
         self.send_str("\n");
     }
 }

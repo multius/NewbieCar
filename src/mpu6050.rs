@@ -17,6 +17,16 @@ pub struct MPU6050 {
     >
 }
 
+pub struct Data {
+    pub temp: i16,
+    pub acc_x: i16,
+    pub acc_y: i16,
+    pub acc_z: i16,
+    pub gyro_x: i16,
+    pub gyro_y: i16,
+    pub gyro_z: i16,
+}
+
 pub fn init(
     i2c: I2C1,
     mapr: &mut MAPR,
@@ -24,7 +34,7 @@ pub fn init(
     apb: &mut APB1,
     pb6: PB6<Alternate<OpenDrain>>,
     pb7: PB7<Alternate<OpenDrain>>
-) -> MPU6050 {
+) -> (MPU6050, Data) {
     let i2c = BlockingI2c::i2c1(
         i2c,
         (pb6, pb7),
@@ -48,7 +58,18 @@ pub fn init(
     mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x00);
     mpu6050.write(Regs::ACCEL_CONFIG.addr(), 0x00);
 
-    mpu6050
+    (
+        mpu6050,
+        Data {
+            temp: 0,
+            acc_x: 0,
+            acc_y: 0,
+            acc_z: 0,
+            gyro_x: 0,
+            gyro_y: 0,
+            gyro_z: 0,
+        }
+    )
 }
 
 impl MPU6050 {
@@ -107,6 +128,18 @@ impl MPU6050 {
     // pub fn get_angle(&mut self) -> i16 {
 
     // }
+
+    pub fn refresh(&mut self) -> Data {
+        Data {
+            temp: self.get_temp(),
+            acc_x: self.get_accel_x(),
+            acc_y: self.get_accel_y(),
+            acc_z: self.get_accel_z(),
+            gyro_x: self.get_gyro_x(),
+            gyro_y: self.get_gyro_y(),
+            gyro_z: self.get_gyro_z()
+        }
+    }
 }
 
 

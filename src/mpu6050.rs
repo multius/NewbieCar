@@ -5,6 +5,9 @@ use stm32f1xx_hal::afio::MAPR;
 use stm32f1xx_hal::gpio::gpiob::{PB6, PB7};
 use stm32f1xx_hal::gpio::{Alternate, OpenDrain};
 
+use core::cell::{Ref, RefCell};
+
+
 static X_GYRO_OFFSET: i16 = 0;
 static Y_GYRO_OFFSET: i16 = 0;
 static Z_GYRO_OFFSET: i16 = 0;
@@ -14,7 +17,18 @@ pub struct MPU6050 {
     i2c: BlockingI2c<
         I2C1,
         (PB6<Alternate<OpenDrain>>,PB7<Alternate<OpenDrain>>)
-    >
+    >,
+    pub data: RefCell<Data>
+}
+
+pub struct Data {
+    pub temp: i16,
+    pub acc_x: i16,
+    pub acc_y: i16,
+    pub acc_z: i16,
+    pub gyro_x: i16,
+    pub gyro_y: i16,
+    pub gyro_z: i16,
 }
 
 pub fn init(
@@ -38,7 +52,16 @@ pub fn init(
         100000
     );
     let mut mpu6050 = MPU6050 {
-        i2c
+        i2c,
+        data: RefCell::new(Data {
+            temp: 0,
+            acc_x: 0,
+            acc_y: 0,
+            acc_z: 0,
+            gyro_x: 0,
+            gyro_y: 0,
+            gyro_z: 0,
+        })
     };
 
     mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);
@@ -105,6 +128,22 @@ impl MPU6050 {
     }
 
     // pub fn get_angle(&mut self) -> i16 {
+
+    // }
+
+    pub fn borrow_data(&mut self) -> Ref<Data>{
+        self.data.borrow()
+    }
+
+    // pub fn refresh(&mut self) {
+        
+    //     self.data.temp = self.get_temp();
+    //     self.data.acc_x = self.get_accel_x();
+    //     self.data.acc_y = self.get_accel_y();
+    //     self.data.acc_z = self.get_accel_z();
+    //     self.data.gyro_x = self.get_gyro_x();
+    //     self.data.gyro_y = self.get_gyro_y();
+    //     self.data.gyro_z = self.get_gyro_z();
 
     // }
 }

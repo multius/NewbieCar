@@ -1,6 +1,6 @@
 use crate::mpu6050;
 
-use mpu6050::{MPU6050, Data};
+use mpu6050::MPU6050;
 
 use stm32f1xx_hal::serial::*;
 use stm32f1xx_hal::{rcc, rcc::APB2};
@@ -14,15 +14,13 @@ use embedded_hal::serial::Write;
 use nb::block;
 
 use core::iter::IntoIterator;
-use core::cell::{Ref, RefCell};
 
 
-pub struct PC<'a> {
+pub struct PC {
     tx: Tx<USART1>,
-    mpu6050_data: Ref<'a, Data>
 }
 
-pub fn init<'a>(
+pub fn init(
     usart: USART1,
     pa9: PA9<Alternate<PushPull>>,
     pa10: PA10<Input<Floating>>,
@@ -30,8 +28,7 @@ pub fn init<'a>(
     config: Config,
     clocks: rcc::Clocks,
     apb: &mut APB2,
-    mpu6050_data: Ref<'a, Data>
-) -> PC<'a> {
+) -> PC {
     let serial = Serial::usart1(
         usart,
         (pa9, pa10),
@@ -43,11 +40,10 @@ pub fn init<'a>(
     let (tx, _) = serial.split();
     PC {
         tx,
-        mpu6050_data
     }
 }
 
-impl PC<'_> {
+impl PC {
     pub fn send(&mut self, char: u8) {
         block!(self.tx.write(char)).ok();
     }
@@ -138,33 +134,33 @@ impl PC<'_> {
         self.send_str(str);
     }
 
-    pub fn send_all_of_mpu6050(&mut self) {
+    pub fn send_all_of_mpu6050(&mut self, mpu6050: &mut MPU6050) {
         self.send_str("TEMP: ");
-        self.send_i16(self.mpu6050_data.temp);
+        self.send_i16(mpu6050.get_temp());
         self.send_str("\n");
 
         self.send_str("ACCEL_X: ");
-        self.send_i16(self.mpu6050_data.acc_x);
+        self.send_i16(mpu6050.get_accel_x());
         self.send_str("\t");
 
         self.send_str("ACCEL_Y: ");
-        self.send_i16(self.mpu6050_data.acc_y);
+        self.send_i16(mpu6050.get_accel_y());
         self.send_str("\t");
 
         self.send_str("ACCEL_Z: ");
-        self.send_i16(self.mpu6050_data.acc_z);
+        self.send_i16(mpu6050.get_accel_z());
         self.send_str("\n");
 
         self.send_str("GYRO_X: ");
-        self.send_i16(self.mpu6050_data.gyro_x);
+        self.send_i16(mpu6050.get_gyro_x());
         self.send_str("\t");
 
         self.send_str("GYRO_Y: ");
-        self.send_i16(self.mpu6050_data.gyro_y);
+        self.send_i16(mpu6050.get_gyro_y());
         self.send_str("\t");
 
         self.send_str("GYRO_Z: ");
-        self.send_i16(self.mpu6050_data.gyro_z);
+        self.send_i16(mpu6050.get_gyro_z());
         self.send_str("\n");
     }
 }

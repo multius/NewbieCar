@@ -1,4 +1,3 @@
-use i2c::DutyCycle;
 use stm32f1xx_hal::{prelude::*, i2c, i2c::BlockingI2c, pac::I2C1, rcc, rcc::APB1};
 
 use stm32f1xx_hal::afio::MAPR;
@@ -19,7 +18,6 @@ pub struct MPU6050 {
 }
 
 pub struct Data {
-    pub temp: i16,
     pub acc_x: i16,
     pub acc_y: i16,
     pub acc_z: i16,
@@ -54,15 +52,14 @@ pub fn init(
 
     mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);
     mpu6050.write(Regs::POWER_MGMT_2.addr(), 0x00);
-    mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x13);
-    mpu6050.write(Regs::CONFIG.addr(), 0x00);
+    mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x07);
+    mpu6050.write(Regs::CONFIG.addr(), 0x06);
     mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x00);
     mpu6050.write(Regs::ACCEL_CONFIG.addr(), 0x00);
 
     (
         mpu6050,
         Data {
-            temp: 0,
             acc_x: 0,
             acc_y: 0,
             acc_z: 0,
@@ -132,7 +129,6 @@ impl MPU6050 {
 
     pub fn refresh(&mut self) -> Data {
         Data {
-            temp: self.get_temp(),
             acc_x: self.get_accel_x(),
             acc_y: self.get_accel_y(),
             acc_z: self.get_accel_z(),

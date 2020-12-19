@@ -8,7 +8,7 @@ use nb::block;
 
 use cortex_m_rt::entry;
 use stm32f1xx_hal::{ pac, prelude::*, serial::Config, timer::{CountDownTimer, Event, Timer}};
-use pac::{interrupt,Interrupt,TIM2};
+use pac::{interrupt,Interrupt,TIM2,TIM3};
 
 use core::cell::RefCell;
 use cortex_m::{asm::wfi, interrupt::Mutex};
@@ -18,49 +18,81 @@ mod blinky;
 mod inter_PC;
 
 static G_TIM2: Mutex<RefCell<Option<CountDownTimer<TIM2>>>> = Mutex::new(RefCell::new(None));
+static G_TIM3: Mutex<RefCell<Option<CountDownTimer<TIM3>>>> = Mutex::new(RefCell::new(None));
 static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell::new(None));
+static G_PC: Mutex<RefCell<Option<inter_PC::PC>>> = Mutex::new(RefCell::new(None));
 static G_BLINK: Mutex<RefCell<Option<blinky::Blink>>> = Mutex::new(RefCell::new(None));
 static G_DATA: Mutex<RefCell<Option<mpu6050::Data>>> = Mutex::new(RefCell::new(None));
 
+// #[interrupt]
+// unsafe fn TIM2() {
+//     static mut TIM2: Option<CountDownTimer<TIM2>> = None;
+//     static mut MPU6050: Option<mpu6050::MPU6050> = None;
+//     static mut BLINK: Option<blinky::Blink> = None;
+
+//     let mpu6050 = MPU6050.get_or_insert_with(|| {
+//         cortex_m::interrupt::free(|cs| {
+//             // Move LED pin here, leaving a None in its place
+//             G_MPU6050.borrow(cs).replace(None).unwrap()
+//         })
+//     });
+    
+//     let tim2 = TIM2.get_or_insert_with(|| {
+//         cortex_m::interrupt::free(|cs| {
+//             // Move LED pin here, leaving a None in its place
+//             G_TIM2.borrow(cs).replace(None).unwrap()
+//         })
+//     });
+
+//     // let pc = PC.get_or_insert_with(|| {
+//     //     cortex_m::interrupt::free(|cs| {
+//     //         // Move LED pin here, leaving a None in its place
+//     //         G_PC.borrow(cs).replace(None).unwrap()
+//     //     })
+//     // });
+
+//     let blink = BLINK.get_or_insert_with(|| {
+//         cortex_m::interrupt::free(|cs| {
+//             // Move LED pin here, leaving a None in its place
+//             G_BLINK.borrow(cs).replace(None).unwrap()
+//         })
+//     });
+
+//     cortex_m::interrupt::free(|cs| *G_DATA.borrow(cs).borrow_mut() = Some(mpu6050.refresh()));
+
+    
+//     blink.flash();
+//     let _ = tim2.wait();
+// }
+
 #[interrupt]
-unsafe fn TIM2() {
-    static mut TIM2: Option<CountDownTimer<TIM2>> = None;
-    static mut MPU6050: Option<mpu6050::MPU6050> = None;
-    static mut BLINK: Option<blinky::Blink> = None;
+unsafe fn TIM3() {
+    static mut TIM3: Option<CountDownTimer<TIM3>> = None;
+    static mut PC: Option<inter_PC::PC> = None;
 
-    let mpu6050 = MPU6050.get_or_insert_with(|| {
+    let pc = PC.get_or_insert_with(|| {
         cortex_m::interrupt::free(|cs| {
             // Move LED pin here, leaving a None in its place
-            G_MPU6050.borrow(cs).replace(None).unwrap()
+            G_PC.borrow(cs).replace(None).unwrap()
         })
     });
     
-    let tim2 = TIM2.get_or_insert_with(|| {
+    let tim3 = TIM3.get_or_insert_with(|| {
         cortex_m::interrupt::free(|cs| {
             // Move LED pin here, leaving a None in its place
-            G_TIM2.borrow(cs).replace(None).unwrap()
+            G_TIM3.borrow(cs).replace(None).unwrap()
         })
     });
 
-    // let pc = PC.get_or_insert_with(|| {
-    //     cortex_m::interrupt::free(|cs| {
-    //         // Move LED pin here, leaving a None in its place
-    //         G_PC.borrow(cs).replace(None).unwrap()
-    //     })
-    // });
-
-    let blink = BLINK.get_or_insert_with(|| {
+    pc.send_all_of_mpu6050(
         cortex_m::interrupt::free(|cs| {
             // Move LED pin here, leaving a None in its place
-            G_BLINK.borrow(cs).replace(None).unwrap()
+            G_DATA.borrow(cs).replace(None).unwrap()
         })
-    });
-
-    // cortex_m::interrupt::free(|cs| *G_DATA.borrow(cs).borrow_mut() = Some(mpu6050.refresh()));
+    );
 
     
-    blink.flash();
-    let _ = tim2.wait();
+    let _ = tim3.wait();
 }
 
 #[entry]
@@ -99,7 +131,7 @@ fn main() -> ! {
     //let mut timer = Timer::syst(cp.SYST, &clocks).start_count_down(1.hz());
     
 
-    let (mpu6050, mpu6050_data) = mpu6050::init(
+    let (mut mpu6050, mpu6050_data) = mpu6050::init(
         dp.I2C1,
         &mut afio.mapr,
         clocks,
@@ -109,7 +141,7 @@ fn main() -> ! {
     );
 
 
-    let mut pc = inter_PC::init(
+    let pc = inter_PC::init(
         dp.USART1,
         tx,
         rx,
@@ -119,36 +151,38 @@ fn main() -> ! {
         &mut rcc.apb2
     );
 
-    let blink = blinky::init(pb5);
+    let mut blink = blinky::init(pb5);
 
 
-    let mut tim2 = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1).start_count_down(5000.ms());
+    // let mut tim2 = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
+    //     .start_count_down(1000.ms());
     
-    // let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1).start_count_down(100.hz());
+    let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
+        .start_count_down(1000.ms());
 
-    tim2.listen(Event::Update);
+    // tim2.listen(Event::Update);
+    tim3.listen(Event::Update);
 
-    cortex_m::interrupt::free(|cs| *G_TIM2.borrow(cs).borrow_mut() = Some(tim2));
-    cortex_m::interrupt::free(|cs| *G_MPU6050.borrow(cs).borrow_mut() = Some(mpu6050));
-    cortex_m::interrupt::free(|cs| *G_BLINK.borrow(cs).borrow_mut() = Some(blink));
+
+    // cortex_m::interrupt::free(|cs| *G_TIM2.borrow(cs).borrow_mut() = Some(tim2));
+    cortex_m::interrupt::free(|cs| *G_TIM3.borrow(cs).borrow_mut() = Some(tim3));
+    // cortex_m::interrupt::free(|cs| *G_MPU6050.borrow(cs).borrow_mut() = Some(mpu6050));
+    
+    cortex_m::interrupt::free(|cs| *G_PC.borrow(cs).borrow_mut() = Some(pc));
+    // cortex_m::interrupt::free(|cs| *G_BLINK.borrow(cs).borrow_mut() = Some(blink));
     cortex_m::interrupt::free(|cs| *G_DATA.borrow(cs).borrow_mut() = Some(mpu6050_data));
 
     unsafe {
-        cortex_m::peripheral::NVIC::unmask(Interrupt::TIM2);
+        // cortex_m::peripheral::NVIC::unmask(Interrupt::TIM2);
+        cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
     }
 
     loop {
+
+        
+        blink.flash();
+        cortex_m::interrupt::free(|cs| *G_DATA.borrow(cs).borrow_mut() = Some(mpu6050.refresh()));
+    
         // block!(tim3.wait()).unwrap();
-
-        // pc.send_str("\nFROM MPU6050: \n");
-        // // pc.send(mpu6050.read(mpu6050::Regs::ACC_REGX_H.addr()));
-        // // pc.send(mpu6050.read(mpu6050::Regs::ACC_REGX_H.addr()+1));
-
-        // pc.send_all_of_mpu6050(
-        //     cortex_m::interrupt::free(|cs| {
-        //         // Move LED pin here, leaving a None in its place
-        //         G_DATA.borrow(cs).replace(None).unwrap()
-        //     })
-        // );
     }
 }

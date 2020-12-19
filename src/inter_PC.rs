@@ -1,3 +1,5 @@
+#![no_std]
+
 use crate::mpu6050;
 
 use mpu6050::MPU6050;
@@ -13,8 +15,8 @@ use embedded_hal::serial::Write;
 
 use nb::block;
 
-use core::iter::IntoIterator;
-
+use core::{iter::IntoIterator, writeln};
+use core::fmt::Write as write;
 
 pub struct PC {
     tx: Tx<USART1>,
@@ -135,32 +137,44 @@ impl PC {
     }
 
     pub fn send_all_of_mpu6050(&mut self, data: mpu6050::Data) {
-        self.send_str("TEMP: ");
-        self.send_i16(data.temp);
-        self.send_str("\n");
+        // self.send_str("TEMP: ");
+        // self.send_i16(data.temp);
+        // self.send_str("\n");
 
-        self.send_str("ACCEL_X: ");
-        self.send_i16(data.acc_x);
-        self.send_str("\t");
+        write!(
+            self.tx,
+            "\nFROM MPU6050:\nTEMP: {} \nACCEL_X: {}   ACCEL_Y: {}   ACCEL_Z: {}\nGYRO_X: {}   GYRO_Y: {}   GYRO_Z: {}\n",
+            data.temp,
+            data.acc_x,
+            data.acc_y,
+            data.acc_z,
+            data.gyro_x,
+            data.gyro_y,
+            data.gyro_z
+        ).ok();
 
-        self.send_str("ACCEL_Y: ");
-        self.send_i16(data.acc_y);
-        self.send_str("\t");
+        // self.send_str("ACCEL_X: ");
+        // self.send_i16(data.acc_x);
+        // self.send_str("\t");
 
-        self.send_str("ACCEL_Z: ");
-        self.send_i16(data.acc_z);
-        self.send_str("\n");
+        // self.send_str("ACCEL_Y: ");
+        // self.send_i16(data.acc_y);
+        // self.send_str("\t");
 
-        self.send_str("GYRO_X: ");
-        self.send_i16(data.gyro_x);
-        self.send_str("\t");
+        // self.send_str("ACCEL_Z: ");
+        // self.send_i16(data.acc_z);
+        // self.send_str("\n");
 
-        self.send_str("GYRO_Y: ");
-        self.send_i16(data.gyro_y);
-        self.send_str("\t");
+        // self.send_str("GYRO_X: ");
+        // self.send_i16(data.gyro_x);
+        // self.send_str("\t");
 
-        self.send_str("GYRO_Z: ");
-        self.send_i16(data.gyro_z);
-        self.send_str("\n");
+        // self.send_str("GYRO_Y: ");
+        // self.send_i16(data.gyro_y);
+        // self.send_str("\t");
+
+        // self.send_str("GYRO_Z: ");
+        // self.send_i16(data.gyro_z);
+        // self.send_str("\n");
     }
 }

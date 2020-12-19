@@ -1,3 +1,4 @@
+use i2c::DutyCycle;
 use stm32f1xx_hal::{prelude::*, i2c, i2c::BlockingI2c, pac::I2C1, rcc, rcc::APB1};
 
 use stm32f1xx_hal::afio::MAPR;
@@ -39,13 +40,13 @@ pub fn init(
         i2c,
         (pb6, pb7),
         mapr,
-        i2c::Mode::standard(100.hz()),
+        i2c::Mode::fast(400.hz(), i2c::DutyCycle::Ratio2to1),
         clocks,
         apb,
-        100000,
-        100,
-        100000,
-        100000
+        1,
+        1,
+        1,
+        1
     );
     let mut mpu6050 = MPU6050 {
         i2c
@@ -53,7 +54,7 @@ pub fn init(
 
     mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);
     mpu6050.write(Regs::POWER_MGMT_2.addr(), 0x00);
-    mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x07);
+    mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x19);
     mpu6050.write(Regs::CONFIG.addr(), 0x00);
     mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x00);
     mpu6050.write(Regs::ACCEL_CONFIG.addr(), 0x00);

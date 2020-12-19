@@ -127,10 +127,15 @@ impl MPU6050 {
     // }
 
     pub fn get_angle(&mut self) -> f32 {
-        self.angle = atan2f(
+        let angle_m = atan2f(
             self.get_accel_x() as f32,
             self.get_accel_z() as f32
         ) * (180.0 / 3.1415926);
+        let gyro_m = (self.get_gyro_x() as f32 / 65536.0) * 500.0;
+
+        self.angle = 0.25 * angle_m + 0.75 * (self.angle + gyro_m * 0.025);
+
+
         self.angle
     }
 

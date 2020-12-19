@@ -80,11 +80,9 @@ unsafe fn TIM3() {
     let data = cortex_m::interrupt::free(|cs| {
         G_DATA.borrow(cs).replace(Some(mpu6050::Data {
             acc_x: 0,
-            acc_y: 0,
             acc_z: 0,
-            gyro_x: 0,
-            gyro_y: 0,
-            gyro_z: 0,
+            gyro_x: 0.0,
+            angle: 0.0
         })).unwrap()
     });
     pc.send_all_of_mpu6050(data);
@@ -146,7 +144,7 @@ fn main() -> ! {
 
 
     let mut tim2 = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
-        .start_count_down(50.ms());
+        .start_count_down(25.ms());
     
     let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
         .start_count_down(1000.ms());

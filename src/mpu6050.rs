@@ -5,25 +5,27 @@ use stm32f1xx_hal::afio::MAPR;
 use stm32f1xx_hal::gpio::gpiob::{PB6, PB7};
 use stm32f1xx_hal::gpio::{Alternate, OpenDrain};
 
-static X_GYRO_OFFSET: i16 = 0;
-static Y_GYRO_OFFSET: i16 = 0;
-static Z_GYRO_OFFSET: i16 = 0;
+static X_GYRO_OFFSET: i16 = 71;
+// static Y_GYRO_OFFSET: i16 = -117;
+// static Z_GYRO_OFFSET: i16 = -44;
+static X_ACC_OFFSET: i16 = 0;
+// static Y_ACC_OFFSET: i16 = -30;
+static Z_ACC_OFFSET: i16 = 0;
 
 
 pub struct MPU6050 {
     i2c: BlockingI2c<
         I2C1,
         (PB6<Alternate<OpenDrain>>,PB7<Alternate<OpenDrain>>)
-    >
+    >,
+    angle: f32
 }
 
 pub struct Data {
     pub acc_x: i16,
-    pub acc_y: i16,
     pub acc_z: i16,
-    pub gyro_x: i16,
-    pub gyro_y: i16,
-    pub gyro_z: i16,
+    pub gyro_x: f32,
+    pub angle: f32
 }
 
 pub fn init(
@@ -47,7 +49,8 @@ pub fn init(
         1000
     );
     let mut mpu6050 = MPU6050 {
-        i2c
+        i2c,
+        angle: 0.0
     };
 
     mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);
@@ -61,11 +64,9 @@ pub fn init(
         mpu6050,
         Data {
             acc_x: 0,
-            acc_y: 0,
             acc_z: 0,
-            gyro_x: 0,
-            gyro_y: 0,
-            gyro_z: 0,
+            gyro_x: 0.0,
+            angle: 0.0
         }
     )
 }
@@ -95,46 +96,46 @@ impl MPU6050 {
         ((data_h as i16) << 8) | data_l as i16
     }
 
-    pub fn get_temp(&mut self) -> i16 {
-        self.get_data(Regs::TEMP_OUT_H.addr()) / 340 + 36
-    }
+    // pub fn get_temp(&mut self) -> i16 {
+    //     self.get_data(Regs::TEMP_OUT_H.addr()) / 340 + 36
+    // }
 
     pub fn get_accel_x(&mut self) -> i16 {
-        self.get_data(Regs::ACC_REGX_H.addr())// as f32  / 16384 as f32
+        self.get_data(Regs::ACC_REGX_H.addr()) + X_ACC_OFFSET// as f32  / 16384 as f32
     }
 
-    pub fn get_accel_y(&mut self) -> i16 {
-        self.get_data(Regs::ACC_REGY_H.addr())// as f32  / 16384 as f32
-    }
+    // pub fn get_accel_y(&mut self) -> i16 {
+    //     self.get_data(Regs::ACC_REGY_H.addr()) + Y_ACC_OFFSET// as f32  / 16384 as f32
+    // }
 
     pub fn get_accel_z(&mut self) -> i16 {
-        self.get_data(Regs::ACC_REGZ_H.addr())// as f32  / 16384 as f32
+        self.get_data(Regs::ACC_REGZ_H.addr()) + Z_ACC_OFFSET// as f32  / 16384 as f32
     }
 
     pub fn get_gyro_x(&mut self) -> i16 {
         self.get_data(Regs::GYRO_REGX_H.addr()) + X_GYRO_OFFSET
     }
 
-    pub fn get_gyro_y(&mut self) -> i16 {
-        self.get_data(Regs::GYRO_REGY_H.addr()) + Y_GYRO_OFFSET
-    }
-
-    pub fn get_gyro_z(&mut self) -> i16 {
-        self.get_data(Regs::GYRO_REGZ_H.addr()) + Z_GYRO_OFFSET
-    }
-
-    // pub fn get_angle(&mut self) -> i16 {
-
+    // pub fn get_gyro_y(&mut self) -> i16 {
+    //     self.get_data(Regs::GYRO_REGY_H.addr()) + Y_GYRO_OFFSET
     // }
+
+    // pub fn get_gyro_z(&mut self) -> i16 {
+    //     self.get_data(Regs::GYRO_REGZ_H.addr()) + Z_GYRO_OFFSET
+    // }
+
+    pub fn get_angle(&mut self) -> f32 {
+        let integral = ((self.get_gyro_x() as f32) / 65536.0) * 500.0;
+        self.angle += integral * 0.025;
+        self.angle
+    }
 
     pub fn refresh(&mut self) -> Data {
         Data {
             acc_x: self.get_accel_x(),
-            acc_y: self.get_accel_y(),
             acc_z: self.get_accel_z(),
-            gyro_x: self.get_gyro_x(),
-            gyro_y: self.get_gyro_y(),
-            gyro_z: self.get_gyro_z()
+            gyro_x: (self.get_gyro_x() as f32 * 500.0)/ 65536.0,
+            angle: self.get_angle()
         }
     }
 }
@@ -150,17 +151,17 @@ pub enum Regs {
     /// High Bytle Register Gyro x orientation
     GYRO_REGX_H = 0x43,
     /// High Bytle Register Gyro y orientation
-    GYRO_REGY_H = 0x45,
-    /// High Bytle Register Gyro z orientation
-    GYRO_REGZ_H = 0x47,
-    /// High Byte Register Calc roll
+    // GYRO_REGY_H = 0x45,
+    // /// High Bytle Register Gyro z orientation
+    // GYRO_REGZ_H = 0x47,
+    // /// High Byte Register Calc roll
     ACC_REGX_H = 0x3b,
     /// High Byte Register Calc pitch
-    ACC_REGY_H = 0x3d,
+    // ACC_REGY_H = 0x3d,
     /// High Byte Register Calc yaw
     ACC_REGZ_H = 0x3f,
     /// High Byte Register Temperature
-    TEMP_OUT_H = 0x41,
+    // TEMP_OUT_H = 0x41,
     /// Register to control chip waking from sleep, enabling sensors, default: sleep
     POWER_MGMT_1 = 0x6b,
     /// Internal clock

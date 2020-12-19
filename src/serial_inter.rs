@@ -7,11 +7,8 @@ use stm32f1xx_hal::afio::MAPR;
 use stm32f1xx_hal::gpio::gpioa::{PA9, PA10};
 use stm32f1xx_hal::gpio::{Alternate, PushPull, Input, Floating};
 
-use embedded_hal::serial::Write;
+// use embedded_hal::serial::Write;
 
-use nb::block;
-
-use core::{iter::IntoIterator, writeln};
 use core::fmt::Write as write;
 
 pub struct PC {
@@ -42,20 +39,18 @@ pub fn init(
 }
 
 impl PC {
-    pub fn send(&mut self, char: u8) {
-        block!(self.tx.write(char)).ok();
-    }
+    // pub fn send(&mut self, char: u8) {
+    //     block!(self.tx.write(char)).ok();
+    // }
 
     pub fn send_all_of_mpu6050(&mut self, data: mpu6050::Data) {
         write!(
             self.tx,
-            "\n\nTEMP: {} \nACCEL_X: {}   ACCEL_Y: {}   ACCEL_Z: {}\nGYRO_X: {}   GYRO_Y: {}   GYRO_Z: {}\n",
+            "\nACCEL_X: {}   ACCEL_Z: {}\nGYRO_X: {}   angle: {}\n",
             data.acc_x,
-            data.acc_y,
             data.acc_z,
             data.gyro_x,
-            data.gyro_y,
-            data.gyro_z
+            data.angle
         ).ok();
     }
 }

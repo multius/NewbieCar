@@ -46,7 +46,7 @@ impl PC {
     pub fn send_all_of_mpu6050(&mut self, data: mpu6050::Data) {
         write!(
             self.tx,
-            "\nACCEL_X: {}   ACCEL_Z: {}\nGYRO_X: {}   angle: {}\n",
+            "\nACCEL_X: {}   ACCEL_Z: {}\nGYRO_X: {}\nangle: {}du\n",
             data.acc_x,
             data.acc_z,
             data.gyro_x,

@@ -5,7 +5,9 @@ use stm32f1xx_hal::afio::MAPR;
 use stm32f1xx_hal::gpio::gpiob::{PB6, PB7};
 use stm32f1xx_hal::gpio::{Alternate, OpenDrain};
 
-static X_GYRO_OFFSET: i16 = 71;
+use libm::atan2f;
+
+static X_GYRO_OFFSET: i16 = 73;
 // static Y_GYRO_OFFSET: i16 = -117;
 // static Z_GYRO_OFFSET: i16 = -44;
 static X_ACC_OFFSET: i16 = 0;
@@ -125,8 +127,10 @@ impl MPU6050 {
     // }
 
     pub fn get_angle(&mut self) -> f32 {
-        let integral = ((self.get_gyro_x() as f32) / 65536.0) * 500.0;
-        self.angle += integral * 0.025;
+        self.angle = atan2f(
+            self.get_accel_x() as f32,
+            self.get_accel_z() as f32
+        ) * (180.0 / 3.1415926);
         self.angle
     }
 
@@ -134,7 +138,7 @@ impl MPU6050 {
         Data {
             acc_x: self.get_accel_x(),
             acc_z: self.get_accel_z(),
-            gyro_x: (self.get_gyro_x() as f32 * 500.0)/ 65536.0,
+            gyro_x: (self.get_gyro_x() as f32 / 65536.0) * 500.0,
             angle: self.get_angle()
         }
     }

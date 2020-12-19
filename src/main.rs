@@ -87,7 +87,15 @@ unsafe fn TIM3() {
     pc.send_all_of_mpu6050(
         cortex_m::interrupt::free(|cs| {
             // Move LED pin here, leaving a None in its place
-            G_DATA.borrow(cs).replace(None).unwrap()
+            G_DATA.borrow(cs).replace(Some(mpu6050::Data {
+                temp: 0,
+                acc_x: 0,
+                acc_y: 0,
+                acc_z: 0,
+                gyro_x: 0,
+                gyro_y: 0,
+                gyro_z: 0,
+            })).unwrap()
         })
     );
 

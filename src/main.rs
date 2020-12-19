@@ -187,9 +187,9 @@ fn main() -> ! {
 
     loop {
 
-        
         blink.flash();
-        cortex_m::interrupt::free(|cs| *G_DATA.borrow(cs).borrow_mut() = Some(mpu6050.refresh()));
+        let data  = mpu6050.refresh();
+        cortex_m::interrupt::free(|cs| *G_DATA.borrow(cs).borrow_mut() = Some(data));
     
         // block!(tim3.wait()).unwrap();
     }

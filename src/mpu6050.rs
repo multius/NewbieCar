@@ -40,13 +40,13 @@ pub fn init(
         i2c,
         (pb6, pb7),
         mapr,
-        i2c::Mode::fast(400.hz(), i2c::DutyCycle::Ratio2to1),
+        i2c::Mode::fast(400.khz(), i2c::DutyCycle::Ratio2to1),
         clocks,
         apb,
-        1,
-        1,
-        1,
-        1
+        1000,
+        10,
+        1000,
+        1000
     );
     let mut mpu6050 = MPU6050 {
         i2c
@@ -54,7 +54,7 @@ pub fn init(
 
     mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);
     mpu6050.write(Regs::POWER_MGMT_2.addr(), 0x00);
-    mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x19);
+    mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x13);
     mpu6050.write(Regs::CONFIG.addr(), 0x00);
     mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x00);
     mpu6050.write(Regs::ACCEL_CONFIG.addr(), 0x00);

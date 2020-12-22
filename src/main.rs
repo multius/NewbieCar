@@ -3,7 +3,7 @@
 
 use panic_halt as _;
 
-// use nb::block;
+use nb::block;
 
 use cortex_m_rt::entry;
 use cortex_m::interrupt::Mutex;
@@ -11,6 +11,8 @@ use cortex_m::interrupt::Mutex;
 use stm32f1xx_hal::{pac, prelude::*, serial};
 use stm32f1xx_hal::timer::{CountDownTimer, Event, Timer};
 use stm32f1xx_hal::pac::{interrupt,Interrupt,TIM2,TIM3};
+
+use embedded_hal::digital::v2::OutputPin;
 
 use core::cell::RefCell;
 
@@ -111,11 +113,14 @@ fn main() -> ! {
 
     let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
     let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
+    let mut gpiod = dp.GPIOD.split(&mut rcc.apb2);
 
     
     let pb5 = gpiob.pb5.into_push_pull_output(&mut gpiob.crl);
     let pb6 = gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl);
     let pb7 = gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl);
+    let mut step = gpiod.pd0.into_push_pull_output(&mut gpiod.crl);
+    let mut dir = gpiod.pd1.into_push_pull_output(&mut gpiod.crl);
     let tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
     let rx = gpioa.pa10;
     
@@ -149,6 +154,9 @@ fn main() -> ! {
     let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
         .start_count_down(1000.ms());
 
+    let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
+        .start_count_down(5000.us());
+
     tim2.listen(Event::Update);
     tim3.listen(Event::Update);
 
@@ -166,8 +174,18 @@ fn main() -> ! {
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
     }
 
+
+    let mut pb1 = gpiob.pb1.into_push_pull_output(&mut gpiob.crl);
+    dir.set_high().ok();
+
     loop {
 
-        // block!(tim3.wait()).unwrap();
+        step.set_high().ok();
+        pb1.set_high().ok();
+        block!(tim4.wait()).unwrap();
+
+        step.set_low().ok();
+        pb1.set_low().ok();
+        block!(tim4.wait()).unwrap();
     }
 }

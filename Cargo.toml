@@ -1,5 +1,5 @@
 [package]
-name = "blinky"
+name = "car-with-two-wheels"
 version = "0.1.0"
 authors = ["Multi-Illusion <multiillusion@gmail.com>"]
 edition = "2018"

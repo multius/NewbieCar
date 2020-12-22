@@ -19,6 +19,7 @@ use core::cell::RefCell;
 mod mpu6050;
 mod blinky;
 mod serial_inter;
+mod motor;
 
 
 

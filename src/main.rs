@@ -3,16 +3,16 @@
 
 use panic_halt as _;
 
-use nb::block;
+// use nb::block;
 
 use cortex_m_rt::entry;
 use cortex_m::interrupt::Mutex;
 
 use stm32f1xx_hal::{pac, prelude::*, serial};
 use stm32f1xx_hal::timer::{CountDownTimer, Event, Timer};
-use stm32f1xx_hal::pac::{interrupt,Interrupt,TIM2,TIM3};
+use stm32f1xx_hal::pac::{interrupt,Interrupt,TIM2,TIM3,TIM4};
 
-use embedded_hal::digital::v2::OutputPin;
+// use embedded_hal::digital::v2::OutputPin;
 
 use core::cell::RefCell;
 
@@ -22,14 +22,17 @@ mod serial_inter;
 mod motor;
 
 
-
 static G_TIM2: Mutex<RefCell<Option<CountDownTimer<TIM2>>>> = Mutex::new(RefCell::new(None));
 static G_TIM3: Mutex<RefCell<Option<CountDownTimer<TIM3>>>> = Mutex::new(RefCell::new(None));
+static G_TIM4: Mutex<RefCell<Option<CountDownTimer<TIM4>>>> = Mutex::new(RefCell::new(None));
+
 static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell::new(None));
-static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
 static G_BLINK: Mutex<RefCell<Option<blinky::Blink>>> = Mutex::new(RefCell::new(None));
+
+static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
 static G_DATA: Mutex<RefCell<Option<mpu6050::Data>>> = Mutex::new(RefCell::new(None));
 
+static G_MOTOR: Mutex<RefCell<Option<motor::Motor>>> = Mutex::new(RefCell::new(None));
 
 #[interrupt]
 unsafe fn TIM2() {
@@ -42,7 +45,7 @@ unsafe fn TIM2() {
             G_MPU6050.borrow(cs).replace(None).unwrap()
         })
     });
-    
+
     let tim2 = TIM2.get_or_insert_with(|| {
         cortex_m::interrupt::free(|cs| {
             G_TIM2.borrow(cs).replace(None).unwrap()
@@ -58,7 +61,7 @@ unsafe fn TIM2() {
     let data = mpu6050.refresh(); //额外定义一个变量，避免refresh操作锁定Mutex
     cortex_m::interrupt::free(|cs| *G_DATA.borrow(cs).borrow_mut() = Some(data));
 
-    
+
     blink.flash();
     let _ = tim2.wait();
 }
@@ -94,17 +97,38 @@ unsafe fn TIM3() {
     let _ = tim3.wait();
 }
 
+#[interrupt]
+unsafe fn TIM4() {
+    static mut TIM4: Option<CountDownTimer<TIM4>> = None;
+    static mut MOTOR: Option<motor::Motor> = None;
+
+    let tim4 = TIM4.get_or_insert_with(|| {
+        cortex_m::interrupt::free(|cs| {
+            G_TIM4.borrow(cs).replace(None).unwrap()
+        })
+    });
+
+    let motor = MOTOR.get_or_insert_with(|| {
+        cortex_m::interrupt::free(|cs| {
+            G_MOTOR.borrow(cs).replace(None).unwrap()
+        })
+    });
+
+    motor.send_pulse();
+
+    let _ = tim4.wait();
+}
+
 #[entry]
 fn main() -> ! {
-    //let cp = cortex_m::Peripherals::take().unwrap();
+    let mut cp = cortex_m::Peripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
 
     let mut flash = dp.FLASH.constrain();
     let mut rcc = dp.RCC.constrain();
     let mut afio = dp.AFIO.constrain(&mut rcc.apb2);
 
-    // Freeze the configuration of all the clocks in the system and store the frozen frequencies in
-    // `clocks`
+    
     let clocks = rcc
         .cfgr
         .sysclk(72.mhz())
@@ -120,8 +144,8 @@ fn main() -> ! {
     let pb5 = gpiob.pb5.into_push_pull_output(&mut gpiob.crl);
     let pb6 = gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl);
     let pb7 = gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl);
-    let mut step = gpiod.pd0.into_push_pull_output(&mut gpiod.crl);
-    let mut dir = gpiod.pd1.into_push_pull_output(&mut gpiod.crl);
+    let step = gpiod.pd0.into_push_pull_output(&mut gpiod.crl);
+    let dir = gpiod.pd1.into_push_pull_output(&mut gpiod.crl);
     let tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
     let rx = gpioa.pa10;
     
@@ -148,45 +172,52 @@ fn main() -> ! {
 
     let blink = blinky::init(pb5);
 
+    let led = gpiob.pb1.into_push_pull_output(&mut gpiob.crl);
+    let motor = motor::init(
+        dir,
+        step,
+        led);
+
 
     let mut tim2 = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
         .start_count_down(25.ms());
-    
+
     let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
         .start_count_down(1000.ms());
 
     let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
-        .start_count_down(5000.us());
+        .start_count_down(20000.hz());
 
     tim2.listen(Event::Update);
     tim3.listen(Event::Update);
+    tim4.listen(Event::Update);
 
 
     cortex_m::interrupt::free(|cs| *G_TIM2.borrow(cs).borrow_mut() = Some(tim2));
     cortex_m::interrupt::free(|cs| *G_TIM3.borrow(cs).borrow_mut() = Some(tim3));
+    cortex_m::interrupt::free(|cs| *G_TIM4.borrow(cs).borrow_mut() = Some(tim4));
+
     cortex_m::interrupt::free(|cs| *G_MPU6050.borrow(cs).borrow_mut() = Some(mpu6050));
-    
-    cortex_m::interrupt::free(|cs| *G_PC.borrow(cs).borrow_mut() = Some(pc));
     cortex_m::interrupt::free(|cs| *G_BLINK.borrow(cs).borrow_mut() = Some(blink));
+
+    cortex_m::interrupt::free(|cs| *G_PC.borrow(cs).borrow_mut() = Some(pc));
     cortex_m::interrupt::free(|cs| *G_DATA.borrow(cs).borrow_mut() = Some(mpu6050_data));
 
+    cortex_m::interrupt::free(|cs| *G_MOTOR.borrow(cs).borrow_mut() = Some(motor));
+
+    
     unsafe {
+
+        cp.NVIC.set_priority(Interrupt::TIM2, 0x10);
+        cp.NVIC.set_priority(Interrupt::TIM3, 0xf0);
+        cp.NVIC.set_priority(Interrupt::TIM4, 0x00);
+
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM2);
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
+        cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
     }
 
 
-    let mut pb1 = gpiob.pb1.into_push_pull_output(&mut gpiob.crl);
-    dir.set_high().ok();
-
     loop {
-
-        step.set_high().ok();
-        pb1.set_high().ok();
-        block!(tim4.wait()).unwrap();
-
-        step.set_low().ok();
-        pb1.set_low().ok();
-        block!(tim4.wait()).unwrap();
     }
 }

@@ -133,7 +133,7 @@ impl MPU6050 {
         ) * (180.0 / 3.1415926);
         let gyro_m = (self.get_gyro_x() as f32 / 65536.0) * 500.0;
 
-        self.angle = 0.25 * angle_m + 0.75 * (self.angle + gyro_m * 0.025);
+        self.angle = 0.10 * angle_m + 0.90 * (self.angle + gyro_m * 0.025);
 
 
         self.angle

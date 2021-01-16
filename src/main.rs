@@ -10,7 +10,7 @@ use cortex_m::interrupt::Mutex;
 
 use stm32f1xx_hal::{pac, prelude::*, serial};
 use stm32f1xx_hal::timer::{CountDownTimer, Event, Timer};
-use stm32f1xx_hal::pac::{interrupt,Interrupt,TIM2,TIM3,TIM4};
+use stm32f1xx_hal::pac::{interrupt, Interrupt, TIM2, TIM3};
 
 // use embedded_hal::digital::v2::OutputPin;
 
@@ -109,13 +109,17 @@ unsafe fn TIM4() { //步进电机中断
         })
     });
 
-    let state = cortex_m::interrupt::free(|cs| {
-        G_STATE.borrow(cs).replace_with(|&mut old| old).unwrap()
-    });
+    let state = refresh_with(&G_STATE);
 
     motor.send_pulse(state);
 
     motor.tim.wait().ok();
+}
+
+fn refresh_with<T: Copy>(addr: &Mutex<RefCell<Option<T>>>) -> T {
+    cortex_m::interrupt::free(|cs| {
+        addr.borrow(cs).replace_with(|&mut old| old).unwrap()
+    })
 }
 
 #[entry]

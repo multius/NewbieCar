@@ -21,10 +21,11 @@ mod blinky;
 mod serial_inter;
 mod motor;
 
+use motor::{Motor, State};
+
 
 static G_TIM2: Mutex<RefCell<Option<CountDownTimer<TIM2>>>> = Mutex::new(RefCell::new(None));
 static G_TIM3: Mutex<RefCell<Option<CountDownTimer<TIM3>>>> = Mutex::new(RefCell::new(None));
-static G_TIM4: Mutex<RefCell<Option<CountDownTimer<TIM4>>>> = Mutex::new(RefCell::new(None));
 
 static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell::new(None));
 static G_BLINK: Mutex<RefCell<Option<blinky::Blink>>> = Mutex::new(RefCell::new(None));
@@ -33,6 +34,7 @@ static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(
 static G_DATA: Mutex<RefCell<Option<mpu6050::Data>>> = Mutex::new(RefCell::new(None));
 
 static G_MOTOR: Mutex<RefCell<Option<motor::Motor>>> = Mutex::new(RefCell::new(None));
+static G_STATE: Mutex<RefCell<Option<motor::State>>> = Mutex::new(RefCell::new(None));
 
 #[interrupt]
 unsafe fn TIM2() {
@@ -98,15 +100,8 @@ unsafe fn TIM3() {
 }
 
 #[interrupt]
-unsafe fn TIM4() {
-    static mut TIM4: Option<CountDownTimer<TIM4>> = None;
+unsafe fn TIM4() { //步进电机中断
     static mut MOTOR: Option<motor::Motor> = None;
-
-    let tim4 = TIM4.get_or_insert_with(|| {
-        cortex_m::interrupt::free(|cs| {
-            G_TIM4.borrow(cs).replace(None).unwrap()
-        })
-    });
 
     let motor = MOTOR.get_or_insert_with(|| {
         cortex_m::interrupt::free(|cs| {
@@ -114,9 +109,13 @@ unsafe fn TIM4() {
         })
     });
 
-    motor.send_pulse();
+    let state = cortex_m::interrupt::free(|cs| {
+        G_STATE.borrow(cs).replace_with(|&mut old| old).unwrap()
+    });
 
-    let _ = tim4.wait();
+    motor.send_pulse(state);
+
+    motor.tim.wait().ok();
 }
 
 #[entry]
@@ -172,11 +171,7 @@ fn main() -> ! {
 
     let blink = blinky::init(pb5);
 
-    let led = gpiob.pb1.into_push_pull_output(&mut gpiob.crl);
-    let motor = motor::init(
-        dir,
-        step,
-        led);
+    
 
 
     let mut tim2 = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
@@ -193,21 +188,26 @@ fn main() -> ! {
     tim4.listen(Event::Update);
 
 
-    cortex_m::interrupt::free(|cs| *G_TIM2.borrow(cs).borrow_mut() = Some(tim2));
-    cortex_m::interrupt::free(|cs| *G_TIM3.borrow(cs).borrow_mut() = Some(tim3));
-    cortex_m::interrupt::free(|cs| *G_TIM4.borrow(cs).borrow_mut() = Some(tim4));
+    let motor = Motor::init(
+        dir,
+        step,
+        gpiob.pb1.into_push_pull_output(&mut gpiob.crl),
+        tim4
+    );
 
-    cortex_m::interrupt::free(|cs| *G_MPU6050.borrow(cs).borrow_mut() = Some(mpu6050));
-    cortex_m::interrupt::free(|cs| *G_BLINK.borrow(cs).borrow_mut() = Some(blink));
+    send_to_global(tim2, &G_TIM2);
+    send_to_global(tim3, &G_TIM3);
 
-    cortex_m::interrupt::free(|cs| *G_PC.borrow(cs).borrow_mut() = Some(pc));
-    cortex_m::interrupt::free(|cs| *G_DATA.borrow(cs).borrow_mut() = Some(mpu6050_data));
+    send_to_global(mpu6050, &G_MPU6050);
+    send_to_global(blink, &G_BLINK);
 
-    cortex_m::interrupt::free(|cs| *G_MOTOR.borrow(cs).borrow_mut() = Some(motor));
+    send_to_global(pc, &G_PC);
+    send_to_global(mpu6050_data, &G_DATA);
 
+    send_to_global(motor, &G_MOTOR);
+    send_to_global(State::new(), &G_STATE);
     
     unsafe {
-
         cp.NVIC.set_priority(Interrupt::TIM2, 0x10);
         cp.NVIC.set_priority(Interrupt::TIM3, 0xf0);
         cp.NVIC.set_priority(Interrupt::TIM4, 0x00);
@@ -220,4 +220,8 @@ fn main() -> ! {
 
     loop {
     }
+}
+
+fn send_to_global<T>(val: T, addr: &Mutex<RefCell<Option<T>>>) {
+    cortex_m::interrupt::free(|cs| *addr.borrow(cs).borrow_mut() = Some(val));
 }

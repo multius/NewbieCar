@@ -61,7 +61,6 @@ static G_STATE: Mutex<RefCell<Option<motor::State>>> = Mutex::new(RefCell::new(N
 #[interrupt]
 unsafe fn TIM2() {
     static mut MPU6050: Option<mpu6050::MPU6050> = None;
-
     let mpu6050 = get_from_global!(MPU6050, G_MPU6050);
 
     let data = mpu6050.refresh(); //额外定义一个变量，避免refresh操作锁定Mutex
@@ -74,11 +73,9 @@ unsafe fn TIM2() {
 #[interrupt]
 unsafe fn TIM3() {
     static mut PC: Option<serial_inter::PC> = None;
-
     let pc = get_from_global!(PC, G_PC);
 
     let data = refresh_with!(&G_DATA);
-
     pc.send_all_of_mpu6050(data);
 
     pc.tim.wait().ok();
@@ -88,11 +85,9 @@ unsafe fn TIM3() {
 #[interrupt]
 unsafe fn TIM4() { //步进电机中断
     static mut MOTOR: Option<motor::Motor> = None;
-
     let motor = get_from_global!(MOTOR, G_MOTOR);
 
     let state = refresh_with!(&G_STATE);
-
     motor.send_pulse(state);
 
     motor.tim.wait().ok();
@@ -173,6 +168,7 @@ fn main() -> ! {
     send_to_global!(motor, &G_MOTOR);
     send_to_global!(State::new(), &G_STATE);
 
+    //-----------------------------------启用定时器
     unsafe {
         cp.NVIC.set_priority(Interrupt::TIM2, 0x10);
         cp.NVIC.set_priority(Interrupt::TIM3, 0xf0);

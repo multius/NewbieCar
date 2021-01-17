@@ -22,7 +22,7 @@ pub struct MPU6050 {
     >,
     angle: f32
 }
-
+#[derive(Clone, Copy)]
 pub struct Data {
     pub acc_x: i16,
     pub acc_z: i16,

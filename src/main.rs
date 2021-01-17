@@ -24,6 +24,20 @@ mod motor;
 use motor::{Motor, State};
 
 
+
+#[macro_use]
+macro_rules! get_from_global {
+    ($local:expr, $addr:expr) => {
+        $local.get_or_insert_with(|| {
+            cortex_m::interrupt::free(|cs| {
+                $addr.borrow(cs).replace(None).unwrap()
+            })
+        })
+    };
+}
+
+
+
 static G_TIM2: Mutex<RefCell<Option<CountDownTimer<TIM2>>>> = Mutex::new(RefCell::new(None));
 static G_TIM3: Mutex<RefCell<Option<CountDownTimer<TIM3>>>> = Mutex::new(RefCell::new(None));
 
@@ -68,46 +82,29 @@ unsafe fn TIM2() {
     let _ = tim2.wait();
 }
 
+
 #[interrupt]
 unsafe fn TIM3() {
-    static mut TIM3: Option<CountDownTimer<TIM3>> = None;
+    static mut TIM: Option<CountDownTimer<TIM3>> = None;
     static mut PC: Option<serial_inter::PC> = None;
 
-    let pc = PC.get_or_insert_with(|| {
-        cortex_m::interrupt::free(|cs| {
-            G_PC.borrow(cs).replace(None).unwrap()
-        })
-    });
+    let pc = get_from_global!(PC, G_PC);
     
-    let tim3 = TIM3.get_or_insert_with(|| {
-        cortex_m::interrupt::free(|cs| {
-            G_TIM3.borrow(cs).replace(None).unwrap()
-        })
-    });
+    let tim = get_from_global!(TIM, G_TIM3);
 
-    let data = cortex_m::interrupt::free(|cs| {
-        G_DATA.borrow(cs).replace(Some(mpu6050::Data {
-            acc_x: 0,
-            acc_z: 0,
-            gyro_x: 0.0,
-            angle: 0.0
-        })).unwrap()
-    });
+    let data = refresh_with(&G_DATA);
     pc.send_all_of_mpu6050(data);
 
     
-    let _ = tim3.wait();
+    tim.wait().ok();
 }
+
 
 #[interrupt]
 unsafe fn TIM4() { //步进电机中断
     static mut MOTOR: Option<motor::Motor> = None;
 
-    let motor = MOTOR.get_or_insert_with(|| {
-        cortex_m::interrupt::free(|cs| {
-            G_MOTOR.borrow(cs).replace(None).unwrap()
-        })
-    });
+    let motor = get_from_global!(MOTOR, G_MOTOR);
 
     let state = refresh_with(&G_STATE);
 
@@ -116,11 +113,7 @@ unsafe fn TIM4() { //步进电机中断
     motor.tim.wait().ok();
 }
 
-fn refresh_with<T: Copy>(addr: &Mutex<RefCell<Option<T>>>) -> T {
-    cortex_m::interrupt::free(|cs| {
-        addr.borrow(cs).replace_with(|&mut old| old).unwrap()
-    })
-}
+
 
 #[entry]
 fn main() -> ! {
@@ -228,4 +221,11 @@ fn main() -> ! {
 
 fn send_to_global<T>(val: T, addr: &Mutex<RefCell<Option<T>>>) {
     cortex_m::interrupt::free(|cs| *addr.borrow(cs).borrow_mut() = Some(val));
+}
+
+
+fn refresh_with<T: Copy>(addr: &Mutex<RefCell<Option<T>>>) -> T {
+    cortex_m::interrupt::free(|cs| {
+        addr.borrow(cs).replace_with(|&mut old| old).unwrap()
+    })
 }

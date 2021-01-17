@@ -155,6 +155,8 @@ fn main() -> ! {
     let motor = Motor::init(
         gpiod.pd1.into_push_pull_output(&mut gpiod.crl),
         gpiod.pd0.into_push_pull_output(&mut gpiod.crl),
+        gpiod.pd15.into_push_pull_output(&mut gpiod.crh),
+        gpiod.pd14.into_push_pull_output(&mut gpiod.crh),
         gpiob.pb1.into_push_pull_output(&mut gpiob.crl),
         tim4
     );

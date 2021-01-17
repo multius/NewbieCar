@@ -6,13 +6,22 @@ use stm32f1xx_hal::pac::TIM4;
 
 use embedded_hal::digital::v2::OutputPin;
 
-type DIRPIN = gpiod::PD1<Output<PushPull>>;
-type STEPPIN = gpiod::PD0<Output<PushPull>>;
+
+#[allow(non_camel_case_types)]
+type RIG_DIRPIN = gpiod::PD1<Output<PushPull>>;
+#[allow(non_camel_case_types)]
+type RIG_STEPPIN = gpiod::PD0<Output<PushPull>>;
+#[allow(non_camel_case_types)]
+type LEF_DIRPIN = gpiod::PD15<Output<PushPull>>;
+#[allow(non_camel_case_types)]
+type LEF_STEPPIN = gpiod::PD14<Output<PushPull>>;
 type LEDPIN = gpiob::PB1<Output<PushPull>>;
 
 pub struct Motor {
-    dir: DIRPIN,
-    step: STEPPIN,
+    rig_dir: RIG_DIRPIN,
+    rig_step: RIG_STEPPIN,
+    lef_dir: LEF_DIRPIN,
+    lef_step: LEF_STEPPIN,
     led: LEDPIN,
     pulse: bool,
     flag: i16,
@@ -37,10 +46,19 @@ impl State {
 
 
 impl Motor{
-    pub fn init(dir: DIRPIN, step: STEPPIN, led: LEDPIN, tim: CountDownTimer<TIM4>) -> Motor {
+    pub fn init(
+        rig_dir: RIG_DIRPIN,
+        rig_step: RIG_STEPPIN,
+        lef_dir: LEF_DIRPIN,
+        lef_step: LEF_STEPPIN,
+        led: LEDPIN,
+        tim: CountDownTimer<TIM4>
+    ) -> Motor {
         Motor {
-            dir,
-            step,
+            rig_dir,
+            rig_step,
+            lef_dir,
+            lef_step,
             led,
             pulse: true,
             flag: 0,
@@ -49,20 +67,30 @@ impl Motor{
     }
 
     pub fn send_pulse(&mut self, state: State) {
-        self.dir.set_high().ok();
+        self.rig_dir.set_high().ok();
+        self.lef_dir.set_high().ok();
+
         if self.pulse == true {
-            self.step.set_low().ok();
+
+            self.rig_step.set_low().ok();
+            self.lef_step.set_low().ok();
             self.led.set_low().ok();
             self.pulse = false;
+
         } else {
             if self.flag >= state.speed {
-                self.step.set_high().ok();
+                
+                self.rig_step.set_high().ok();
+                self.lef_step.set_high().ok();
                 self.led.set_high().ok();
                 self.pulse = true;
                 self.flag = 0;
+
             } else {
+
                 self.pulse = true;
                 self.flag += 1;
+
             }
         }
     }

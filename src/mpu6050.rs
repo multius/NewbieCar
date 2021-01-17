@@ -7,6 +7,16 @@ use stm32f1xx_hal::gpio::{Alternate, OpenDrain};
 
 use libm::atan2f;
 
+use stm32f1xx_hal::timer::CountDownTimer;
+use stm32f1xx_hal::pac::TIM2;
+
+use stm32f1xx_hal::gpio::gpiob;
+use stm32f1xx_hal::gpio::{Output, PushPull};
+
+use embedded_hal::digital::v2::OutputPin;
+
+type LEDPIN = gpiob::PB5<Output<PushPull>>;
+
 static X_GYRO_OFFSET: i16 = 73;
 // static Y_GYRO_OFFSET: i16 = -117;
 // static Z_GYRO_OFFSET: i16 = -44;
@@ -20,7 +30,9 @@ pub struct MPU6050 {
         I2C1,
         (PB6<Alternate<OpenDrain>>,PB7<Alternate<OpenDrain>>)
     >,
-    angle: f32
+    angle: f32,
+    led: LEDPIN,
+    pub tim: CountDownTimer<TIM2>,
 }
 #[derive(Clone, Copy)]
 pub struct Data {
@@ -30,50 +42,59 @@ pub struct Data {
     pub angle: f32
 }
 
-pub fn init(
-    i2c: I2C1,
-    mapr: &mut MAPR,
-    clocks: rcc::Clocks,
-    apb: &mut APB1,
-    pb6: PB6<Alternate<OpenDrain>>,
-    pb7: PB7<Alternate<OpenDrain>>
-) -> (MPU6050, Data) {
-    let i2c = BlockingI2c::i2c1(
-        i2c,
-        (pb6, pb7),
-        mapr,
-        i2c::Mode::fast(400.khz(), i2c::DutyCycle::Ratio2to1),
-        clocks,
-        apb,
-        1000,
-        10,
-        1000,
-        1000
-    );
-    let mut mpu6050 = MPU6050 {
-        i2c,
-        angle: 0.0
-    };
 
-    mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);
-    mpu6050.write(Regs::POWER_MGMT_2.addr(), 0x00);
-    mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x07);
-    mpu6050.write(Regs::CONFIG.addr(), 0x06);
-    mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x00);
-    mpu6050.write(Regs::ACCEL_CONFIG.addr(), 0x00);
 
-    (
-        mpu6050,
+impl Data {
+    pub fn new() -> Data{
         Data {
             acc_x: 0,
             acc_z: 0,
             gyro_x: 0.0,
             angle: 0.0
         }
-    )
+    }
 }
 
 impl MPU6050 {
+    pub fn init(
+        i2c: I2C1,
+        mapr: &mut MAPR,
+        clocks: rcc::Clocks,
+        apb: &mut APB1,
+        pb6: PB6<Alternate<OpenDrain>>,
+        pb7: PB7<Alternate<OpenDrain>>,
+        led: LEDPIN,
+        tim:CountDownTimer<TIM2>
+    ) -> MPU6050 {
+        let i2c = BlockingI2c::i2c1(
+            i2c,
+            (pb6, pb7),
+            mapr,
+            i2c::Mode::fast(400.khz(), i2c::DutyCycle::Ratio2to1),
+            clocks,
+            apb,
+            1000,
+            10,
+            1000,
+            1000
+        );
+        let mut mpu6050 = MPU6050 {
+            i2c,
+            angle: 0.0,
+            led,
+            tim
+        };
+    
+        mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);
+        mpu6050.write(Regs::POWER_MGMT_2.addr(), 0x00);
+        mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x07);
+        mpu6050.write(Regs::CONFIG.addr(), 0x06);
+        mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x00);
+        mpu6050.write(Regs::ACCEL_CONFIG.addr(), 0x00);
+    
+        mpu6050
+    }
+
     pub fn write(&mut self, addr: u8, data: u8) {
         self.i2c.write(
             Regs::SLAVE_ADDR.addr(), 
@@ -140,12 +161,17 @@ impl MPU6050 {
     }
 
     pub fn refresh(&mut self) -> Data {
-        Data {
+        self.led.set_low().ok();
+        
+        let data = Data {
             acc_x: self.get_accel_x(),
             acc_z: self.get_accel_z(),
             gyro_x: (self.get_gyro_x() as f32 / 65536.0) * 500.0,
             angle: self.get_angle()
-        }
+        };
+        self.led.set_high().ok();
+
+        data
     }
 }
 

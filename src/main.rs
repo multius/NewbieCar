@@ -3,7 +3,7 @@
 
 use panic_halt as _;
 
-// use nb::block;
+use nb::block;
 
 use cortex_m_rt::entry;
 use cortex_m::interrupt::Mutex;
@@ -122,7 +122,10 @@ fn main() -> ! {
         .start_count_down(1000.ms());
 
     let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
-        .start_count_down(20000.hz());
+        .start_count_down((motor::UNIT_TIME / 2).us());
+
+    let mut tim1 = Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
+        .start_count_down(250.ms());
 
     tim2.listen(Event::Update);
     tim3.listen(Event::Update);
@@ -182,6 +185,10 @@ fn main() -> ! {
     }
 
 
+    let mut i = 500;
+
     loop {
+        send_to_global!(State::new().set_speed(i), &G_STATE);
+        // i += 1;
     }
 }

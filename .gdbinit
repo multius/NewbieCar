@@ -3,8 +3,6 @@ target remote :3333
 monitor reset halt
 load
 
-set auto-load safe-path /
-
 define stop
     monitor reset halt
 end

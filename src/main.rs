@@ -3,7 +3,7 @@
 
 use panic_halt as _;
 
-use nb::block;
+// use nb::block;
 
 use cortex_m_rt::entry;
 use cortex_m::interrupt::Mutex;
@@ -11,18 +11,20 @@ use cortex_m::interrupt::Mutex;
 use stm32f1xx_hal::{pac, prelude::*, serial};
 use stm32f1xx_hal::timer::{Event, Timer};
 use stm32f1xx_hal::pac::{interrupt, Interrupt};
+use stm32f1xx_hal::delay::Delay;
 
 // use embedded_hal::digital::v2::OutputPin;
 
 use core::cell::RefCell;
+use core::mem::MaybeUninit;
 
 mod mpu6050;
 mod serial_inter;
 mod motor;
 
-use mpu6050::{MPU6050, Data};
+use mpu6050::MPU6050;
 use serial_inter::PC;
-use motor::{Motor, State};
+use motor::Motor;
 
 
 macro_rules! send_to_global {
@@ -41,11 +43,15 @@ macro_rules! get_from_global {
     };
 }
 
-macro_rules! refresh_with {
-    ($addr: expr) => {
-        cortex_m::interrupt::free(|cs| {
-            $addr.borrow(cs).replace_with(|&mut old| old).unwrap()
-        })
+macro_rules! get_ptr {
+    ($addr:expr) => {
+        & *$addr.as_ptr()
+    };
+}
+
+macro_rules! get_mut_ptr {
+    ($addr:expr) => {
+        &mut *$addr.as_mut_ptr()
     };
 }
 
@@ -53,18 +59,19 @@ macro_rules! refresh_with {
 static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell::new(None));
 
 static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
-static G_DATA: Mutex<RefCell<Option<mpu6050::Data>>> = Mutex::new(RefCell::new(None));
+static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
 
 static G_MOTOR: Mutex<RefCell<Option<motor::Motor>>> = Mutex::new(RefCell::new(None));
-static G_STATE: Mutex<RefCell<Option<motor::State>>> = Mutex::new(RefCell::new(None));
+static mut G_STATE: MaybeUninit<motor::State> = MaybeUninit::uninit();
+
 
 #[interrupt]
 unsafe fn TIM2() {
     static mut MPU6050: Option<mpu6050::MPU6050> = None;
     let mpu6050 = get_from_global!(MPU6050, G_MPU6050);
-
-    let data = mpu6050.refresh(); //额外定义一个变量，避免refresh操作锁定Mutex
-    send_to_global!(data, G_DATA);
+    let data = get_mut_ptr!(G_DATA); 
+    
+    *data = mpu6050.refresh(); 
 
     mpu6050.tim.wait().ok();
 }
@@ -74,8 +81,8 @@ unsafe fn TIM2() {
 unsafe fn TIM3() {
     static mut PC: Option<serial_inter::PC> = None;
     let pc = get_from_global!(PC, G_PC);
+    let data = get_ptr!(G_DATA);
 
-    let data = refresh_with!(&G_DATA);
     pc.send_all_of_mpu6050(data);
 
     pc.tim.wait().ok();
@@ -86,8 +93,8 @@ unsafe fn TIM3() {
 unsafe fn TIM4() { //步进电机中断
     static mut MOTOR: Option<motor::Motor> = None;
     let motor = get_from_global!(MOTOR, G_MOTOR);
+    let state = get_ptr!(G_STATE);
 
-    let state = refresh_with!(&G_STATE);
     motor.send_pulse(state);
 
     motor.tim.wait().ok();
@@ -114,6 +121,8 @@ fn main() -> ! {
     let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
     let mut gpiod = dp.GPIOD.split(&mut rcc.apb2);
 
+    let mut delay = Delay::new( cp.SYST,  clocks);
+
     //-------------------------------------定时器初始化
     let mut tim2 = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
         .start_count_down(25.ms());
@@ -123,9 +132,6 @@ fn main() -> ! {
 
     let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
         .start_count_down((motor::UNIT_TIME / 2).us());
-
-    let mut tim1 = Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
-        .start_count_down(250.ms());
 
     tim2.listen(Event::Update);
     tim3.listen(Event::Update);
@@ -168,10 +174,20 @@ fn main() -> ! {
     send_to_global!(mpu6050, &G_MPU6050);
 
     send_to_global!(pc, &G_PC);
-    send_to_global!(Data::new(), &G_DATA);
 
     send_to_global!(motor, &G_MOTOR);
-    send_to_global!(State::new(), &G_STATE);
+    
+    {
+        let data = unsafe {
+            get_mut_ptr!(G_DATA)
+        };
+        *data = mpu6050::Data::new();
+
+        let state = unsafe {
+            get_mut_ptr!(G_STATE)
+        };
+        *state = motor::State::new();
+    }
 
     //-----------------------------------启用定时器
     unsafe {
@@ -185,10 +201,6 @@ fn main() -> ! {
     }
 
 
-    let mut i = 500;
-
     loop {
-        send_to_global!(State::new().set_speed(i), &G_STATE);
-        // i += 1;
     }
 }

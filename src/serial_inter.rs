@@ -60,7 +60,7 @@ impl PC {
         }
     }
 
-    pub fn send_all_of_mpu6050(&mut self, data: mpu6050::Data) {
+    pub fn send_all_of_mpu6050(&mut self, data: &mpu6050::Data) {
         self.led.set_low().ok();
         write!(
             self.tx,

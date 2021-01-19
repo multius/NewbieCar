@@ -42,9 +42,9 @@ pub struct State {
 impl State {
     pub fn new() -> State {
         State {
-            rig_speed: 0,
+            rig_speed: 1,
             rig_forward: true,
-            lef_speed: 0,
+            lef_speed: 1,
             lef_forward: true
         }
     }
@@ -80,7 +80,7 @@ impl Motor{
         }
     }
 
-    pub fn send_pulse(&mut self, state: State) {
+    pub fn send_pulse(&mut self, state: &State) {
         match self.pulse {
             true => {
                 self.pulse = false;

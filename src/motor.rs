@@ -1,4 +1,4 @@
-use stm32f1xx_hal::gpio::{gpiod, gpiob};
+use stm32f1xx_hal::gpio::gpiod;
 use stm32f1xx_hal::gpio::{Output, PushPull};
 
 use stm32f1xx_hal::timer::CountDownTimer;
@@ -6,7 +6,7 @@ use stm32f1xx_hal::pac::TIM4;
 
 use embedded_hal::digital::v2::OutputPin;
 
-pub static UNIT_TIME: u32 = 500; //单元时间常数（单位us）
+pub static UNIT_TIME: u32 = 8000; //单元时间常数（单位us）
 
 
 #[allow(non_camel_case_types)]
@@ -17,9 +17,8 @@ type RIG_STEPPIN = gpiod::PD0<Output<PushPull>>;
 type LEF_DIRPIN = gpiod::PD15<Output<PushPull>>;
 #[allow(non_camel_case_types)]
 type LEF_STEPPIN = gpiod::PD14<Output<PushPull>>;
-type LEDPIN = gpiob::PB1<Output<PushPull>>;
 
-pub struct Motor {
+pub struct Motor<'a> {
     rig_dir: RIG_DIRPIN,
     rig_step: RIG_STEPPIN,
     lef_dir: LEF_DIRPIN,
@@ -27,7 +26,7 @@ pub struct Motor {
     rig_flag: u16,
     lef_flag: u16,
     pulse: bool,
-    led: LEDPIN,
+    state: &'a State,
     pub tim: CountDownTimer<TIM4>
 }
 
@@ -55,18 +54,25 @@ impl State {
 
         self
     }
+
+    pub fn set_forward(mut self, forward: bool) -> Self {
+        self.rig_forward = forward;
+        self.lef_forward = forward;
+
+        self
+    }
 }
 
 
-impl Motor{
+impl<'a> Motor<'a>{
     pub fn init(
         rig_dir: RIG_DIRPIN,
         rig_step: RIG_STEPPIN,
         lef_dir: LEF_DIRPIN,
         lef_step: LEF_STEPPIN,
-        led: LEDPIN,
+        state: &'a State,
         tim: CountDownTimer<TIM4>
-    ) -> Motor {
+    ) -> Motor<'a> {
         Motor {
             rig_dir,
             rig_step,
@@ -75,12 +81,12 @@ impl Motor{
             rig_flag: 0,
             lef_flag: 0,
             pulse: true,
-            led,
+            state,
             tim
         }
     }
 
-    pub fn send_pulse(&mut self, state: &State) {
+    pub fn send_pulse(&mut self) {
         match self.pulse {
             true => {
                 self.pulse = false;
@@ -89,16 +95,15 @@ impl Motor{
             },
             false => {
                 self.pulse = true;
-                // self.send_rig_pulse(&state);
-                // self.send_lef_pulse(&state);
-                self.send_all_pulse(state)
+                self.send_rig_pulse();
+                self.send_lef_pulse();
             }
         }
 
     }
 
-    fn send_rig_pulse(&mut self, state: &State) {
-        match state.rig_forward {
+    fn send_rig_pulse(&mut self) {
+        match self.state.rig_forward {
             true => {
                 self.rig_dir.set_low().ok();
             },
@@ -107,7 +112,7 @@ impl Motor{
             }
         }
 
-        if self.rig_flag >= state.rig_speed {
+        if self.rig_flag >= self.state.rig_speed {
             self.rig_flag = 1;
             self.rig_step.set_high().ok();
         } else {
@@ -116,8 +121,8 @@ impl Motor{
 
     }
 
-    fn send_lef_pulse(&mut self, state: &State) {
-        match state.lef_forward {
+    fn send_lef_pulse(&mut self) {
+        match self.state.lef_forward {
             true => {
                 self.lef_dir.set_high().ok();
             },
@@ -126,36 +131,13 @@ impl Motor{
             }
         }
 
-        if self.lef_flag >= state.lef_speed {
+        if self.lef_flag >= self.state.lef_speed {
             self.lef_flag = 1;
             self.lef_step.set_high().ok();
         } else {
             self.lef_flag += 1;
         }
 
-    }
-
-    fn send_all_pulse(&mut self, state: &State) {
-        match state.lef_forward {
-            true => {
-                self.lef_dir.set_high().ok();
-                self.rig_dir.set_low().ok();
-            },
-            false => {
-                self.lef_dir.set_low().ok();
-                // self.rig_dir.set_high().ok();
-            }
-        }
-
-        if self.lef_flag >= state.lef_speed {
-            self.lef_flag = 1;
-            self.lef_step.set_high().ok();
-            // self.rig_flag = 1;
-            // self.rig_step.set_high().ok();
-        } else {
-            self.lef_flag += 1;
-            // self.rig_flag += 1;
-        }
     }
 
 }

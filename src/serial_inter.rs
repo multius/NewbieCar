@@ -20,15 +20,16 @@ use core::fmt::Write as write;
 
 type LEDPIN = gpiob::PB0<Output<PushPull>>;
 
-pub struct PC {
+pub struct PC<'a> {
     tx: Tx<USART1>,
     led: LEDPIN,
+    data: &'a mpu6050::Data,
     pub tim: CountDownTimer<TIM3>
 }
 
 
 
-impl PC {
+impl<'a> PC<'a> {
     // pub fn send(&mut self, char: u8) {
     //     block!(self.tx.write(char)).ok();
     // }
@@ -42,8 +43,9 @@ impl PC {
         clocks: rcc::Clocks,
         apb: &mut APB2,
         led: LEDPIN,
+        data: &'static mpu6050::Data,
         tim: CountDownTimer<TIM3>
-    ) -> PC {
+    ) -> PC<'a> {
         let serial = Serial::usart1(
             usart,
             (tx, rx),
@@ -56,19 +58,20 @@ impl PC {
         PC {
             tx,
             led,
+            data,
             tim
         }
     }
 
-    pub fn send_all_of_mpu6050(&mut self, data: &mpu6050::Data) {
+    pub fn send_all_of_mpu6050(&mut self) {
         self.led.set_low().ok();
         write!(
             self.tx,
             "\nACCEL_X: {}   ACCEL_Z: {}\nGYRO_X: {}\nangle: {}du\n",
-            data.acc_x,
-            data.acc_z,
-            data.gyro_x,
-            data.angle
+            self.data.acc_x,
+            self.data.acc_z,
+            self.data.gyro_x,
+            self.data.angle
         ).ok();
         self.led.set_high().ok();
     }

@@ -21,10 +21,12 @@ use core::mem::MaybeUninit;
 mod mpu6050;
 mod serial_inter;
 mod motor;
+mod upright;
 
 use mpu6050::MPU6050;
 use serial_inter::PC;
 use motor::Motor;
+use upright::UprightCon;
 
 
 macro_rules! send_to_global {
@@ -64,12 +66,24 @@ static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
 static G_MOTOR: Mutex<RefCell<Option<motor::Motor>>> = Mutex::new(RefCell::new(None));
 static mut G_STATE: MaybeUninit<motor::State> = MaybeUninit::uninit();
 
+// static G_UPRIGHTCON: Mutex<RefCell<Option<upright::UprightCon>>> = Mutex::new(RefCell::new(None));
+
+// #[interrupt]
+// unsafe fn TIM1_BRK() {
+//     static mut UPRIGHTCON: Option<upright::UprightCon> = None;
+//     let upright_con = get_from_global!(UPRIGHTCON, G_UPRIGHTCON);
+    
+//     upright_con.cal_to_speed();
+
+//     upright_con.tim.wait().ok();
+// }
+
 
 #[interrupt]
 unsafe fn TIM2() {
     static mut MPU6050: Option<mpu6050::MPU6050> = None;
     let mpu6050 = get_from_global!(MPU6050, G_MPU6050);
-    let data = get_mut_ptr!(G_DATA); 
+    let data = get_mut_ptr!(G_DATA);
     
     *data = mpu6050.refresh(); 
 
@@ -81,9 +95,8 @@ unsafe fn TIM2() {
 unsafe fn TIM3() {
     static mut PC: Option<serial_inter::PC> = None;
     let pc = get_from_global!(PC, G_PC);
-    let data = get_ptr!(G_DATA);
 
-    pc.send_all_of_mpu6050(data);
+    pc.send_all_of_mpu6050();
 
     pc.tim.wait().ok();
 }
@@ -93,9 +106,8 @@ unsafe fn TIM3() {
 unsafe fn TIM4() { //步进电机中断
     static mut MOTOR: Option<motor::Motor> = None;
     let motor = get_from_global!(MOTOR, G_MOTOR);
-    let state = get_ptr!(G_STATE);
 
-    motor.send_pulse(state);
+    motor.send_pulse();
 
     motor.tim.wait().ok();
 }
@@ -125,7 +137,7 @@ fn main() -> ! {
 
     //-------------------------------------定时器初始化
     let mut tim2 = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
-        .start_count_down(25.ms());
+        .start_count_down(100.ms());
 
     let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
         .start_count_down(1000.ms());
@@ -133,11 +145,28 @@ fn main() -> ! {
     let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
         .start_count_down((motor::UNIT_TIME / 2).us());
 
+    let mut tim1 = Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
+        .start_count_down(150.ms());
+
     tim2.listen(Event::Update);
     tim3.listen(Event::Update);
     tim4.listen(Event::Update);
+    tim1.listen(Event::Update);
 
     //------------------------------------外置模块初始化
+
+    {
+        let data = unsafe {
+            get_mut_ptr!(G_DATA)
+        };
+        *data = mpu6050::Data::new();
+
+        let state = unsafe {
+            get_mut_ptr!(G_STATE)
+        };
+        *state = motor::State::new();
+    }
+
     let mpu6050 = MPU6050::init(
         dp.I2C1,
         &mut afio.mapr,
@@ -158,6 +187,7 @@ fn main() -> ! {
         clocks,
         &mut rcc.apb2,
         gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
+        unsafe { get_ptr!(G_DATA) },
         tim3
     );
 
@@ -166,8 +196,14 @@ fn main() -> ! {
         gpiod.pd0.into_push_pull_output(&mut gpiod.crl),
         gpiod.pd15.into_push_pull_output(&mut gpiod.crh),
         gpiod.pd14.into_push_pull_output(&mut gpiod.crh),
-        gpiob.pb1.into_push_pull_output(&mut gpiob.crl),
+        unsafe { get_ptr!(G_STATE) },
         tim4
+    );
+
+    let mut upright_con = UprightCon::init(
+        unsafe { get_ptr!(G_DATA) },
+        unsafe { get_mut_ptr!(G_STATE) },
+        tim1
     );
 
     //-----------------------------------初始化全局变量
@@ -177,30 +213,23 @@ fn main() -> ! {
 
     send_to_global!(motor, &G_MOTOR);
     
-    {
-        let data = unsafe {
-            get_mut_ptr!(G_DATA)
-        };
-        *data = mpu6050::Data::new();
-
-        let state = unsafe {
-            get_mut_ptr!(G_STATE)
-        };
-        *state = motor::State::new();
-    }
+    // send_to_global!(upright_con, &G_UPRIGHTCON);
 
     //-----------------------------------启用定时器
     unsafe {
-        cp.NVIC.set_priority(Interrupt::TIM2, 0x10);
+        cp.NVIC.set_priority(Interrupt::TIM2, 0x20);
         cp.NVIC.set_priority(Interrupt::TIM3, 0xf0);
         cp.NVIC.set_priority(Interrupt::TIM4, 0x00);
+        // cp.NVIC.set_priority(Interrupt::TIM1_BRK, 0x10);
 
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM2);
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
+        // cortex_m::peripheral::NVIC::unmask(Interrupt::TIM1_BRK);
     }
 
 
     loop {
+        upright_con.cal_to_speed();
     }
 }

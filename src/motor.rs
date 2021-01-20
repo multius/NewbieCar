@@ -24,8 +24,8 @@ pub struct Motor {
     rig_step: RIG_STEPPIN,
     lef_dir: LEF_DIRPIN,
     lef_step: LEF_STEPPIN,
-    rig_flag: i16,
-    lef_flag: i16,
+    rig_flag: u16,
+    lef_flag: u16,
     pulse: bool,
     led: LEDPIN,
     pub tim: CountDownTimer<TIM4>
@@ -33,9 +33,9 @@ pub struct Motor {
 
 #[derive(Clone, Copy)]
 pub struct State {
-    rig_speed: i16,//脉冲占比参数，值越大速度越小
+    rig_speed: u16,//脉冲占比参数，值越大速度越小
     rig_forward: bool,
-    lef_speed: i16,//脉冲占比
+    lef_speed: u16,//脉冲占比
     lef_forward: bool
 }
 
@@ -49,7 +49,7 @@ impl State {
         }
     }
 
-    pub fn set_speed(mut self, speed: i16) -> Self {
+    pub fn set_speed(mut self, speed: u16) -> Self {
         self.rig_speed = speed;
         self.lef_speed = speed;
 
@@ -85,10 +85,13 @@ impl Motor{
             true => {
                 self.pulse = false;
                 self.rig_step.set_low().ok();
+                self.lef_step.set_low().ok();
             },
             false => {
                 self.pulse = true;
-                self.send_rig_pulse(&state);
+                // self.send_rig_pulse(&state);
+                // self.send_lef_pulse(&state);
+                self.send_all_pulse(state)
             }
         }
 
@@ -100,7 +103,7 @@ impl Motor{
                 self.rig_dir.set_low().ok();
             },
             false => {
-                self.lef_dir.set_high().ok();
+                self.rig_dir.set_high().ok();
             }
         }
 
@@ -111,6 +114,48 @@ impl Motor{
             self.rig_flag += 1;
         }
 
+    }
+
+    fn send_lef_pulse(&mut self, state: &State) {
+        match state.lef_forward {
+            true => {
+                self.lef_dir.set_high().ok();
+            },
+            false => {
+                self.lef_dir.set_low().ok();
+            }
+        }
+
+        if self.lef_flag >= state.lef_speed {
+            self.lef_flag = 1;
+            self.lef_step.set_high().ok();
+        } else {
+            self.lef_flag += 1;
+        }
+
+    }
+
+    fn send_all_pulse(&mut self, state: &State) {
+        match state.lef_forward {
+            true => {
+                self.lef_dir.set_high().ok();
+                self.rig_dir.set_low().ok();
+            },
+            false => {
+                self.lef_dir.set_low().ok();
+                // self.rig_dir.set_high().ok();
+            }
+        }
+
+        if self.lef_flag >= state.lef_speed {
+            self.lef_flag = 1;
+            self.lef_step.set_high().ok();
+            // self.rig_flag = 1;
+            // self.rig_step.set_high().ok();
+        } else {
+            self.lef_flag += 1;
+            // self.rig_flag += 1;
+        }
     }
 
 }

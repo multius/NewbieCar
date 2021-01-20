@@ -6,7 +6,7 @@ use libm::fabsf;
 use crate::mpu6050;
 use crate::motor;
 
-static K: f32 = 1000.0;
+static K: f32 = 7000.0;
 
 pub struct UprightCon<'a> {
     data: &'a mpu6050::Data,

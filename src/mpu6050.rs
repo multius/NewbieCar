@@ -20,9 +20,9 @@ type LEDPIN = gpiob::PB5<Output<PushPull>>;
 static X_GYRO_OFFSET: i16 = 73;
 // static Y_GYRO_OFFSET: i16 = -117;
 // static Z_GYRO_OFFSET: i16 = -44;
-static X_ACC_OFFSET: i16 = 400;
+static X_ACC_OFFSET: i16 = -300;
 // static Y_ACC_OFFSET: i16 = -30;
-static Z_ACC_OFFSET: i16 = 0;
+static Z_ACC_OFFSET: i16 = -1000;
 
 
 pub struct MPU6050 {

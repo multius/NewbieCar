@@ -11,7 +11,7 @@ use cortex_m::interrupt::Mutex;
 use stm32f1xx_hal::{pac, prelude::*, serial};
 use stm32f1xx_hal::timer::{Event, Timer};
 use stm32f1xx_hal::pac::{interrupt, Interrupt};
-// use stm32f1xx_hal::delay::Delay;
+use stm32f1xx_hal::delay::Delay;
 
 // use embedded_hal::digital::v2::OutputPin;
 
@@ -133,7 +133,9 @@ fn main() -> ! {
     let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
     let mut gpiod = dp.GPIOD.split(&mut rcc.apb2);
 
-    // let mut delay = Delay::new( cp.SYST,  clocks);
+    let mut delay = Delay::new( cp.SYST,  clocks);
+
+    delay.delay_ms(500_u16);
 
     //-------------------------------------定时器初始化
     let mut tim2 = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)

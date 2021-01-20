@@ -24,7 +24,7 @@ mod motor;
 mod upright;
 
 use mpu6050::MPU6050;
-use serial_inter::PC;
+// use serial_inter::PC;
 use motor::Motor;
 use upright::UprightCon;
 
@@ -60,13 +60,13 @@ macro_rules! get_mut_ptr {
 
 static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell::new(None));
 
-static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
+// static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
 static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
 
 static G_MOTOR: Mutex<RefCell<Option<motor::Motor>>> = Mutex::new(RefCell::new(None));
 static mut G_STATE: MaybeUninit<motor::State> = MaybeUninit::uninit();
 
-// static G_UPRIGHTCON: Mutex<RefCell<Option<upright::UprightCon>>> = Mutex::new(RefCell::new(None));
+static G_UPRIGHTCON: Mutex<RefCell<Option<upright::UprightCon>>> = Mutex::new(RefCell::new(None));
 
 // #[interrupt]
 // unsafe fn TIM1_BRK() {
@@ -82,24 +82,28 @@ static mut G_STATE: MaybeUninit<motor::State> = MaybeUninit::uninit();
 #[interrupt]
 unsafe fn TIM2() {
     static mut MPU6050: Option<mpu6050::MPU6050> = None;
+    static mut UPRIGHTCON: Option<upright::UprightCon> = None;
     let mpu6050 = get_from_global!(MPU6050, G_MPU6050);
+    let upright_con = get_from_global!(UPRIGHTCON, G_UPRIGHTCON);
+
     let data = get_mut_ptr!(G_DATA);
-    
-    *data = mpu6050.refresh(); 
+
+    *data = mpu6050.refresh();
+    upright_con.cal_to_speed();
 
     mpu6050.tim.wait().ok();
 }
 
 
-#[interrupt]
-unsafe fn TIM3() {
-    static mut PC: Option<serial_inter::PC> = None;
-    let pc = get_from_global!(PC, G_PC);
+// #[interrupt]
+// unsafe fn TIM3() {
+//     static mut PC: Option<serial_inter::PC> = None;
+//     let pc = get_from_global!(PC, G_PC);
 
-    pc.send_all_of_mpu6050();
+//     pc.send_all_of_mpu6050();
 
-    pc.tim.wait().ok();
-}
+//     pc.tim.wait().ok();
+// }
 
 
 #[interrupt]
@@ -130,7 +134,7 @@ fn main() -> ! {
         .freeze(&mut flash.acr);
 
     let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
-    let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
+    // let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
     let mut gpiod = dp.GPIOD.split(&mut rcc.apb2);
 
     let mut delay = Delay::new( cp.SYST,  clocks);
@@ -147,13 +151,13 @@ fn main() -> ! {
     let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
         .start_count_down((motor::UNIT_TIME / 2).us());
 
-    let mut tim1 = Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
-        .start_count_down(150.ms());
+    // let mut tim1 = Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
+    //     .start_count_down(150.ms());
 
     tim2.listen(Event::Update);
     tim3.listen(Event::Update);
     tim4.listen(Event::Update);
-    tim1.listen(Event::Update);
+    // tim1.listen(Event::Update);
 
     //------------------------------------外置模块初始化
 
@@ -180,18 +184,18 @@ fn main() -> ! {
         tim2
     );
 
-    let pc = PC::init(
-        dp.USART1,
-        gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh),
-        gpioa.pa10,
-        &mut afio.mapr,
-        serial::Config::default().baudrate(9600.bps()),
-        clocks,
-        &mut rcc.apb2,
-        gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
-        unsafe { get_ptr!(G_DATA) },
-        tim3
-    );
+    // let pc = PC::init(
+    //     dp.USART1,
+    //     gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh),
+    //     gpioa.pa10,
+    //     &mut afio.mapr,
+    //     serial::Config::default().baudrate(9600.bps()),
+    //     clocks,
+    //     &mut rcc.apb2,
+    //     gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
+    //     unsafe { get_ptr!(G_DATA) },
+    //     tim3
+    // );
 
     let motor = Motor::init(
         gpiod.pd1.into_push_pull_output(&mut gpiod.crl),
@@ -202,20 +206,20 @@ fn main() -> ! {
         tim4
     );
 
-    let mut upright_con = UprightCon::init(
+    let upright_con = UprightCon::init(
         unsafe { get_ptr!(G_DATA) },
         unsafe { get_mut_ptr!(G_STATE) },
-        tim1
+        tim3
     );
 
     //-----------------------------------初始化全局变量
     send_to_global!(mpu6050, &G_MPU6050);
 
-    send_to_global!(pc, &G_PC);
+    // send_to_global!(pc, &G_PC);
 
     send_to_global!(motor, &G_MOTOR);
     
-    // send_to_global!(upright_con, &G_UPRIGHTCON);
+    send_to_global!(upright_con, &G_UPRIGHTCON);
 
     //-----------------------------------启用定时器
     unsafe {
@@ -232,6 +236,6 @@ fn main() -> ! {
 
 
     loop {
-        upright_con.cal_to_speed();
+        // upright_con.cal_to_speed();
     }
 }

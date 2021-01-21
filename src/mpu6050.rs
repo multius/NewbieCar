@@ -17,8 +17,8 @@ use embedded_hal::digital::v2::OutputPin;
 
 type LEDPIN = gpiob::PB5<Output<PushPull>>;
 
-static X_GYRO_OFFSET: i16 = 78;
-// static Y_GYRO_OFFSET: i16 = -117;
+// static X_GYRO_OFFSET: i16 = 78;
+static Y_GYRO_OFFSET: i16 = -117;
 // static Z_GYRO_OFFSET: i16 = -44;
 static X_ACC_OFFSET: i16 = -485;
 // static Y_ACC_OFFSET: i16 = -30;
@@ -40,7 +40,7 @@ pub struct MPU6050<'a> {
 pub struct Data {
     pub acc_x: i16,
     pub acc_z: i16,
-    pub gyro_x: f32,
+    pub gyro_y: f32,
     pub angle: f32
 }
 
@@ -50,7 +50,7 @@ impl Data {
         Data {
             acc_x: 0,
             acc_z: 0,
-            gyro_x: 0.0,
+            gyro_y: 0.0,
             angle: 0.0
         }
     }
@@ -139,13 +139,13 @@ impl<'a> MPU6050<'a> {
         self.get_data(Regs::ACC_REGZ_H.addr()) + Z_ACC_OFFSET// as f32  / 16384 as f32
     }
 
-    pub fn get_gyro_x(&mut self) -> i16 {
-        self.get_data(Regs::GYRO_REGX_H.addr()) + X_GYRO_OFFSET
-    }
-
-    // pub fn get_gyro_y(&mut self) -> i16 {
-    //     self.get_data(Regs::GYRO_REGY_H.addr()) + Y_GYRO_OFFSET
+    // pub fn get_gyro_x(&mut self) -> i16 {
+    //     self.get_data(Regs::GYRO_REGX_H.addr()) + X_GYRO_OFFSET
     // }
+
+    pub fn get_gyro_y(&mut self) -> i16 {
+        self.get_data(Regs::GYRO_REGY_H.addr()) + Y_GYRO_OFFSET
+    }
 
     // pub fn get_gyro_z(&mut self) -> i16 {
     //     self.get_data(Regs::GYRO_REGZ_H.addr()) + Z_GYRO_OFFSET
@@ -156,9 +156,9 @@ impl<'a> MPU6050<'a> {
             self.get_accel_x() as f32,
             self.get_accel_z() as f32
         ) * (180.0 / 3.1415926);
-        let gyro_m = (self.get_gyro_x() as f32 / 65536.0) * 500.0;
+        let gyro_m = (self.get_gyro_y() as f32 / 65536.0) * 500.0;
 
-        self.angle = 0.10 * angle_m + 0.90 * (self.angle + gyro_m * 0.025);
+        self.angle = 0.10 * angle_m + 0.90 * (self.angle - gyro_m * 0.100);
 
 
         self.angle
@@ -170,7 +170,7 @@ impl<'a> MPU6050<'a> {
         let data = Data {
             acc_x: self.get_accel_x(),
             acc_z: self.get_accel_z(),
-            gyro_x: (self.get_gyro_x() as f32 / 65536.0) * 500.0,
+            gyro_y: (self.get_gyro_y() as f32 / 65536.0) * 500.0,
             angle: self.get_angle()
         };
         self.led.set_high().ok();
@@ -188,9 +188,9 @@ pub enum Regs {
     /// Internal register to check slave addr
     //WHOAMI = 0x75,
     /// High Bytle Register Gyro x orientation
-    GYRO_REGX_H = 0x43,
+    // GYRO_REGX_H = 0x43,
     /// High Bytle Register Gyro y orientation
-    // GYRO_REGY_H = 0x45,
+    GYRO_REGY_H = 0x45,
     // /// High Bytle Register Gyro z orientation
     // GYRO_REGZ_H = 0x47,
     // /// High Byte Register Calc roll

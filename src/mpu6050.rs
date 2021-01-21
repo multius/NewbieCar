@@ -17,12 +17,12 @@ use embedded_hal::digital::v2::OutputPin;
 
 type LEDPIN = gpiob::PB5<Output<PushPull>>;
 
-static X_GYRO_OFFSET: i16 = 73;
+static X_GYRO_OFFSET: i16 = 78;
 // static Y_GYRO_OFFSET: i16 = -117;
 // static Z_GYRO_OFFSET: i16 = -44;
-static X_ACC_OFFSET: i16 = -300;
+static X_ACC_OFFSET: i16 = -485;
 // static Y_ACC_OFFSET: i16 = -30;
-static Z_ACC_OFFSET: i16 = -1000;
+static Z_ACC_OFFSET: i16 = -955;
 
 
 pub struct MPU6050<'a> {
@@ -35,6 +35,7 @@ pub struct MPU6050<'a> {
     data: &'a mut Data,
     pub tim: CountDownTimer<TIM2>,
 }
+
 #[derive(Clone, Copy)]
 pub struct Data {
     pub acc_x: i16,
@@ -42,7 +43,6 @@ pub struct Data {
     pub gyro_x: f32,
     pub angle: f32
 }
-
 
 
 impl Data {
@@ -55,6 +55,7 @@ impl Data {
         }
     }
 }
+
 
 impl<'a> MPU6050<'a> {
     pub fn init(

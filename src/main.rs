@@ -146,7 +146,7 @@ fn main() -> ! {
         dp.TIM3,
         &clocks,
         &mut rcc.apb1
-    ).start_count_down(1000.ms());
+    ).start_count_down(500.ms());
 
     let mut tim4 = Timer::tim4(
         dp.TIM4,

@@ -25,13 +25,14 @@ static X_ACC_OFFSET: i16 = -300;
 static Z_ACC_OFFSET: i16 = -1000;
 
 
-pub struct MPU6050 {
+pub struct MPU6050<'a> {
     i2c: BlockingI2c<
         I2C1,
         (PB6<Alternate<OpenDrain>>,PB7<Alternate<OpenDrain>>)
     >,
     angle: f32,
     led: LEDPIN,
+    data: &'a mut Data,
     pub tim: CountDownTimer<TIM2>,
 }
 #[derive(Clone, Copy)]
@@ -55,7 +56,7 @@ impl Data {
     }
 }
 
-impl MPU6050 {
+impl<'a> MPU6050<'a> {
     pub fn init(
         i2c: I2C1,
         mapr: &mut MAPR,
@@ -64,8 +65,9 @@ impl MPU6050 {
         pb6: PB6<Alternate<OpenDrain>>,
         pb7: PB7<Alternate<OpenDrain>>,
         led: LEDPIN,
+        data: &'a mut Data,
         tim:CountDownTimer<TIM2>
-    ) -> MPU6050 {
+    ) -> MPU6050<'a> {
         let i2c = BlockingI2c::i2c1(
             i2c,
             (pb6, pb7),
@@ -82,16 +84,17 @@ impl MPU6050 {
             i2c,
             angle: 0.0,
             led,
+            data,
             tim
         };
-    
+
         mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);
         mpu6050.write(Regs::POWER_MGMT_2.addr(), 0x00);
         mpu6050.write(Regs::SMPLRT_DIV.addr(), 0x07);
         mpu6050.write(Regs::CONFIG.addr(), 0x06);
         mpu6050.write(Regs::GYRO_CONFIG.addr(), 0x00);
         mpu6050.write(Regs::ACCEL_CONFIG.addr(), 0x00);
-    
+
         mpu6050
     }
 
@@ -160,7 +163,7 @@ impl MPU6050 {
         self.angle
     }
 
-    pub fn refresh(&mut self) -> Data {
+    pub fn refresh(&mut self) {
         self.led.set_low().ok();
         
         let data = Data {
@@ -171,7 +174,7 @@ impl MPU6050 {
         };
         self.led.set_high().ok();
 
-        data
+        *self.data = data;
     }
 }
 

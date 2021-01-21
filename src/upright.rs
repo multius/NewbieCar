@@ -1,6 +1,3 @@
-use stm32f1xx_hal::timer::CountDownTimer;
-use stm32f1xx_hal::pac::TIM3;
-
 use libm::fabsf;
 
 use crate::mpu6050;
@@ -11,19 +8,16 @@ static K: f32 = 7000.0;
 pub struct UprightCon<'a> {
     data: &'a mpu6050::Data,
     pub state: &'a mut motor::State,
-    pub tim: CountDownTimer<TIM3>
 }
 
 impl<'a> UprightCon<'a> {
     pub fn init(
         data: &'a mpu6050::Data,
-        state: &'a mut motor::State,
-        tim: CountDownTimer<TIM3>
+        state: &'a mut motor::State
     ) -> Self {
         UprightCon {
             data,
-            state,
-            tim
+            state
         }
     }
 

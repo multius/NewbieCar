@@ -14,7 +14,6 @@ use stm32f1xx_hal::{pac, prelude::*, serial, timer::Tim2NoRemap};
 use stm32f1xx_hal::timer::{Event, Timer};
 use stm32f1xx_hal::pac::{interrupt, Interrupt};
 use stm32f1xx_hal::delay::Delay;
-use stm32f1xx_hal::pwm::Channel;
 
 // use embedded_hal::digital::v2::OutputPin;
 //-------------------------引入核心库（core）
@@ -95,17 +94,6 @@ unsafe fn TIM4() {
     mpu6050.tim.wait().ok();
 }
 
-// #[interrupt]
-// #[allow(non_snake_case)]
-// unsafe fn TIM4() { //步进电机控制计时器
-//     let motor = get_mut_ptr!(G_MOTOR);
-
-//     motor.send_pulse();
-
-//     motor.tim.wait().ok();
-// }
-
-
 
 #[entry]
 fn main() -> ! {
@@ -124,102 +112,101 @@ fn main() -> ! {
 
     let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
     let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
-    // let mut gpiod = dp.GPIOD.split(&mut rcc.apb2);
+    let mut gpiod = dp.GPIOD.split(&mut rcc.apb2);
 
     let mut delay = Delay::new(cp.SYST, clocks);
 
     delay.delay_ms(500_u16);  //等待mpu6050模块启动
 
     //-------------------------------------定时器初始化
-    let mut pwm = Timer::tim2(
+    let motor_pwm = Timer::tim2(
         dp.TIM2, 
         &clocks, 
         &mut rcc.apb1
     ).pwm::<Tim2NoRemap, _, _, _>(
         (
             gpioa.pa0.into_alternate_push_pull(&mut gpioa.crl),
-            gpioa.pa1.into_alternate_push_pull(&mut gpioa.crl),
-            gpioa.pa2.into_alternate_push_pull(&mut gpioa.crl),
-            gpioa.pa3.into_alternate_push_pull(&mut gpioa.crl)
+            gpioa.pa1.into_alternate_push_pull(&mut gpioa.crl)
         ),
         &mut afio.mapr,
-        1.khz()
+        10.hz()
     );
 
-    // let mut tim3 = Timer::tim3(
-    //     dp.TIM3,
-    //     &clocks,
-    //     &mut rcc.apb1
-    // ).start_count_down(500.ms());
+    let mut tim3 = Timer::tim3(
+        dp.TIM3,
+        &clocks,
+        &mut rcc.apb1
+    ).start_count_down(500.ms());
 
-    // let mut tim4 = Timer::tim4(
-    //     dp.TIM4,
-    //     &clocks,
-    //     &mut rcc.apb1
-    // ).start_count_down(100.ms());
+    let mut tim4 = Timer::tim4(
+        dp.TIM4,
+        &clocks,
+        &mut rcc.apb1
+    ).start_count_down(100.ms());
 
-    // tim3.listen(Event::Update);
-    // tim4.listen(Event::Update);
+    tim3.listen(Event::Update);
+    tim4.listen(Event::Update);
 
     //------------------------------------全局变量初始化
-    // {
-    //     let data = unsafe {
-    //         get_mut_ptr!(G_DATA)
-    //     };
-    //     *data = mpu6050::Data::new();
-    // }
+    {
+        let data = unsafe {
+            get_mut_ptr!(G_DATA)
+        };
+        *data = mpu6050::Data::new();
+    }
 
     //-----------------------------------功能模块初始化
-    // let mpu6050 = MPU6050::init(
-    //     dp.I2C1,
-    //     &mut afio.mapr,
-    //     clocks,
-    //     &mut rcc.apb1,
-    //     gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl),
-    //     gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl),
-    //     gpiob.pb5.into_push_pull_output(&mut gpiob.crl),
-    //     unsafe { get_mut_ptr!(G_DATA) },
-    //     tim4
-    // );
+    let mpu6050 = MPU6050::init(
+        dp.I2C1,
+        &mut afio.mapr,
+        clocks,
+        &mut rcc.apb1,
+        gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl),
+        gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl),
+        gpiob.pb5.into_push_pull_output(&mut gpiob.crl),
+        unsafe { get_mut_ptr!(G_DATA) },
+        tim4
+    );
 
-    // let pc = PC::init(
-    //     dp.USART1,
-    //     gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh),
-    //     gpioa.pa10,
-    //     &mut afio.mapr,
-    //     serial::Config::default().baudrate(9600.bps()),
-    //     clocks,
-    //     &mut rcc.apb2,
-    //     gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
-    //     unsafe { get_ptr!(G_DATA) },
-    //     tim3
-    // );
+    let pc = PC::init(
+        dp.USART1,
+        gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh),
+        gpioa.pa10,
+        &mut afio.mapr,
+        serial::Config::default().baudrate(9600.bps()),
+        clocks,
+        &mut rcc.apb2,
+        gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
+        unsafe { get_ptr!(G_DATA) },
+        tim3
+    );
 
-    // let upright_con = UprightCon::init(
-    //     unsafe { get_ptr!(G_DATA) }
-    // );
+    let upright_con = UprightCon::init(
+        motor_pwm,
+        (
+            gpiod.pd1.into_push_pull_output(&mut gpiod.crl),
+            gpiod.pd15.into_push_pull_output(&mut gpiod.crh)
+        ),
+        unsafe { get_ptr!(G_DATA) }
+
+    );
 
     //-----------------------------------功能模块分发
-    // send_to_global!(mpu6050, &G_MPU6050);
+    send_to_global!(mpu6050, &G_MPU6050);
 
-    // send_to_global!(pc, &G_PC);
+    send_to_global!(pc, &G_PC);
 
-    // // send_to_global!(motor, &G_MOTOR);
-
-    // send_to_global!(upright_con, &G_UPRIGHTCON);
+    send_to_global!(upright_con, &G_UPRIGHTCON);
 
     //-----------------------------------启用定时器中断
-    // unsafe {
-    //     // cp.NVIC.set_priority(Interrupt::TIM3, 0x60);
-    //     // cp.NVIC.set_priority(Interrupt::TIM4, 0x10);
+    unsafe {
+        // cp.NVIC.set_priority(Interrupt::TIM3, 0x60);
+        cp.NVIC.set_priority(Interrupt::TIM4, 0x10);
 
-    //     // cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
-    //     // cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
-    // }
+        // cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
+        cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
+    }
 
-    pwm.set_period(500.ms());
-    pwm.set_duty(Channel::C1, pwm.get_max_duty()/2);
-    pwm.enable(Channel::C1);
 
     loop {
     }

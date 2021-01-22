@@ -3,7 +3,8 @@ use libm::fabsf;
 use crate::mpu6050;
 use crate::motor;
 
-static K: f32 = 7000.0;
+static KP: f32 = 18000.0;
+static KD: f32 = 400.0;
 
 pub struct UprightCon<'a> {
     data: &'a mpu6050::Data,
@@ -31,8 +32,11 @@ impl<'a> UprightCon<'a> {
         }
 
         let angle = fabsf(self.data.angle);
+        let gyro = self.data.gyro_y;
 
-        let speed = (0.9 as f32 / (K * angle * 0.000064)) as u16;
+        let speed = (0.9 as f32 / (
+            (KP * angle - KD * gyro) * 0.000004
+        )) as u16;
 
         *self.state = motor::State::new().set_forward(forward).set_speed(speed);
     }

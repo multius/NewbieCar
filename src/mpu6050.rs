@@ -18,9 +18,9 @@ use embedded_hal::digital::v2::OutputPin;
 type LEDPIN = gpiob::PB5<Output<PushPull>>;
 
 // static X_GYRO_OFFSET: i16 = 78;
-static Y_GYRO_OFFSET: i16 = -117;
+static Y_GYRO_OFFSET: i16 = -127;
 // static Z_GYRO_OFFSET: i16 = -44;
-static X_ACC_OFFSET: i16 = -485;
+static X_ACC_OFFSET: i16 = -900;
 // static Y_ACC_OFFSET: i16 = -30;
 static Z_ACC_OFFSET: i16 = -955;
 
@@ -77,7 +77,7 @@ impl<'a> MPU6050<'a> {
             clocks,
             apb,
             1000,
-            10,
+            1,
             1000,
             1000
         );

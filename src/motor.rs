@@ -6,7 +6,7 @@ use stm32f1xx_hal::pac::TIM4;
 
 use embedded_hal::digital::v2::OutputPin;
 
-pub static UNIT_TIME: u32 = 8000; //单元时间常数（单位us）
+pub static UNIT_TIME: u32 = 2000; //单元时间常数（单位us）
 
 
 #[allow(non_camel_case_types)]

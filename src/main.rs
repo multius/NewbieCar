@@ -120,8 +120,8 @@ fn main() -> ! {
 
     //-------------------------------------定时器初始化
     let motor_pwm = Timer::tim2(
-        dp.TIM2, 
-        &clocks, 
+        dp.TIM2,
+        &clocks,
         &mut rcc.apb1
     ).pwm::<Tim2NoRemap, _, _, _>(
         (
@@ -129,7 +129,7 @@ fn main() -> ! {
             gpioa.pa1.into_alternate_push_pull(&mut gpioa.crl)
         ),
         &mut afio.mapr,
-        10.hz()
+        1.hz()
     );
 
     let mut tim3 = Timer::tim3(
@@ -142,7 +142,7 @@ fn main() -> ! {
         dp.TIM4,
         &clocks,
         &mut rcc.apb1
-    ).start_count_down(100.ms());
+    ).start_count_down(mpu6050::UNIT_TIME.ms());
 
     tim3.listen(Event::Update);
     tim4.listen(Event::Update);
@@ -188,7 +188,6 @@ fn main() -> ! {
             gpiod.pd15.into_push_pull_output(&mut gpiod.crh)
         ),
         unsafe { get_ptr!(G_DATA) }
-
     );
 
     //-----------------------------------功能模块分发

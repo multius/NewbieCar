@@ -18,19 +18,20 @@ use embedded_hal::digital::v2::OutputPin;
 type LEDPIN = gpiob::PB5<Output<PushPull>>;
 
 // static X_GYRO_OFFSET: i16 = 78;
-static Y_GYRO_OFFSET: i16 = -127;
+static Y_GYRO_OFFSET: i32 = -127;
 // static Z_GYRO_OFFSET: i16 = -44;
-static X_ACC_OFFSET: i16 = -900;
+static X_ACC_OFFSET: i32 = -900;
 // static Y_ACC_OFFSET: i16 = -30;
-static Z_ACC_OFFSET: i16 = -955;
+static Z_ACC_OFFSET: i32 = -955;
 
+pub static UNIT_TIME: u32 = 25;//ms
+static UT_S: f32 = 0.025;
 
 pub struct MPU6050<'a> {
     i2c: BlockingI2c<
         I2C1,
         (PB6<Alternate<OpenDrain>>,PB7<Alternate<OpenDrain>>)
     >,
-    angle: f32,
     led: LEDPIN,
     data: &'a mut Data,
     pub tim: CountDownTimer<TIM4>,
@@ -38,10 +39,12 @@ pub struct MPU6050<'a> {
 
 #[derive(Clone, Copy)]
 pub struct Data {
-    pub acc_x: i16,
-    pub acc_z: i16,
+    pub acc_x: i32,
+    pub acc_z: i32,
     pub gyro_y: f32,
-    pub angle: f32
+    pub gyro: f32,
+    pub angle: f32,
+    pub angle_i: f32
 }
 
 
@@ -51,7 +54,9 @@ impl Data {
             acc_x: 0,
             acc_z: 0,
             gyro_y: 0.0,
-            angle: 0.0
+            gyro: 0.0,
+            angle: 0.0,
+            angle_i: 0.0
         }
     }
 }
@@ -83,7 +88,6 @@ impl<'a> MPU6050<'a> {
         );
         let mut mpu6050 = MPU6050 {
             i2c,
-            angle: 0.0,
             led,
             data,
             tim
@@ -116,18 +120,18 @@ impl<'a> MPU6050<'a> {
         buffer[0]
     }
 
-    pub fn get_data(&mut self, addr: u8) -> i16 {
+    pub fn get_data(&mut self, addr: u8) -> i32 {
         let data_h = self.read(addr);
         let data_l = self.read(addr + 1);
 
-        ((data_h as i16) << 8) | data_l as i16
+        (((data_h as i16) << 8) | data_l as i16) as i32
     }
 
     // pub fn get_temp(&mut self) -> i16 {
     //     self.get_data(Regs::TEMP_OUT_H.addr()) / 340 + 36
     // }
 
-    pub fn get_accel_x(&mut self) -> i16 {
+    pub fn get_accel_x(&mut self) -> i32 {
         self.get_data(Regs::ACC_REGX_H.addr()) + X_ACC_OFFSET// as f32  / 16384 as f32
     }
 
@@ -135,7 +139,7 @@ impl<'a> MPU6050<'a> {
     //     self.get_data(Regs::ACC_REGY_H.addr()) + Y_ACC_OFFSET// as f32  / 16384 as f32
     // }
 
-    pub fn get_accel_z(&mut self) -> i16 {
+    pub fn get_accel_z(&mut self) -> i32 {
         self.get_data(Regs::ACC_REGZ_H.addr()) + Z_ACC_OFFSET// as f32  / 16384 as f32
     }
 
@@ -143,35 +147,54 @@ impl<'a> MPU6050<'a> {
     //     self.get_data(Regs::GYRO_REGX_H.addr()) + X_GYRO_OFFSET
     // }
 
-    pub fn get_gyro_y(&mut self) -> i16 {
-        self.get_data(Regs::GYRO_REGY_H.addr()) + Y_GYRO_OFFSET
+    pub fn get_gyro_y(&mut self) -> f32 {
+        let gyro_i16 = self.get_data(Regs::GYRO_REGY_H.addr()) + Y_GYRO_OFFSET;
+        (gyro_i16 as f32 / 65536.0) * 500.0
     }
 
     // pub fn get_gyro_z(&mut self) -> i16 {
     //     self.get_data(Regs::GYRO_REGZ_H.addr()) + Z_GYRO_OFFSET
     // }
 
-    pub fn get_angle(&mut self) -> f32 {
+    pub fn cal_angle(&self, acc_x: i32, acc_z: i32, gyro_y: f32) -> f32 {
         let angle_m = atan2f(
-            self.get_accel_x() as f32,
-            self.get_accel_z() as f32
+            acc_x as f32,
+            acc_z as f32
         ) * (180.0 / 3.1415926);
-        let gyro_m = (self.get_gyro_y() as f32 / 65536.0) * 500.0;
+        let gyro_m = -gyro_y;
 
-        self.angle = 0.10 * angle_m + 0.90 * (self.angle - gyro_m * 0.100);
+        0.10 * angle_m + 0.90 * (self.data.angle + gyro_m * UT_S)
+    }
 
+    // pub fn get_gyro(&mut self) -> f32 {
+    //     let gyro_y = (self.get_gyro_y() as f32 / 65536.0) * 500.0;
+    //     let gyro_d = (self.get_angle()- self.angle);
 
-        self.angle
+    //     0.0
+    // }
+
+    pub fn cal_gyro(&self, angle: f32, gyro_y: f32) -> f32{
+        let angle_d = self.data.angle;
+        
+        ((angle - angle_d) / UT_S) * 0.9 + gyro_y * -0.1
     }
 
     pub fn refresh(&mut self) {
         self.led.set_low().ok();
+
+        let acc_x = self.get_accel_x();
+        let acc_z = self.get_accel_z();
+        let gyro_y = self.get_gyro_y();
+        let angle =  self.cal_angle(acc_x, acc_z, gyro_y);
+        let gyro = self.cal_gyro(angle, gyro_y);
         
         let data = Data {
-            acc_x: self.get_accel_x(),
-            acc_z: self.get_accel_z(),
-            gyro_y: (self.get_gyro_y() as f32 / 65536.0) * 500.0,
-            angle: self.get_angle()
+            acc_x,
+            acc_z,
+            gyro_y,
+            angle,
+            gyro,
+            angle_i: self.data.angle_i + angle * UT_S
         };
         self.led.set_high().ok();
 

@@ -199,10 +199,10 @@ fn main() -> ! {
 
     //-----------------------------------启用定时器中断
     unsafe {
-        // cp.NVIC.set_priority(Interrupt::TIM3, 0x60);
+        cp.NVIC.set_priority(Interrupt::TIM3, 0x60);
         cp.NVIC.set_priority(Interrupt::TIM4, 0x10);
 
-        // cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
+        cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
     }
 

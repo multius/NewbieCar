@@ -148,8 +148,8 @@ impl<'a> MPU6050<'a> {
     // }
 
     pub fn get_gyro_y(&mut self) -> f32 {
-        let gyro_i16 = self.get_data(Regs::GYRO_REGY_H.addr()) + Y_GYRO_OFFSET;
-        (gyro_i16 as f32 / 65536.0) * 500.0
+        let gyro_i32 = self.get_data(Regs::GYRO_REGY_H.addr()) + Y_GYRO_OFFSET;
+        (gyro_i32 as f32 / 65536.0) * 500.0
     }
 
     // pub fn get_gyro_z(&mut self) -> i16 {
@@ -187,7 +187,7 @@ impl<'a> MPU6050<'a> {
         let gyro_y = self.get_gyro_y();
         let angle =  self.cal_angle(acc_x, acc_z, gyro_y);
         let gyro = self.cal_gyro(angle, gyro_y);
-        
+
         let data = Data {
             acc_x,
             acc_z,

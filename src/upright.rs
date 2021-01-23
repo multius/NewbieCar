@@ -13,7 +13,7 @@ use crate::mpu6050;
 
 static KP: f32 = 90.0;
 static KI: f32 = 0.0;//1.30;
-static KD: f32 = 0.01;
+static KD: f32 = 0.00;
 
 pub struct UprightCon<'a> {
     pwm: Pwm<TIM2, Tim2NoRemap, (C1, C2), (

@@ -2,7 +2,6 @@
 #![no_main]
 
 use panic_halt as _;
-
 // use nb::block;
 
 //----------------------------引入cortex-m库
@@ -16,6 +15,7 @@ use stm32f1xx_hal::pac::{interrupt, Interrupt};
 use stm32f1xx_hal::delay::Delay;
 
 // use embedded_hal::digital::v2::OutputPin;
+
 //-------------------------引入核心库（core）
 use core::cell::RefCell;
 use core::mem::MaybeUninit;
@@ -63,7 +63,6 @@ static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell:
 static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
 
 static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
-
 
 static G_UPRIGHTCON: Mutex<RefCell<Option<upright::UprightCon>>> = Mutex::new(RefCell::new(None));
 

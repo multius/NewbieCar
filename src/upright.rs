@@ -12,8 +12,8 @@ use stm32f1xx_hal::prelude::*;
 use crate::mpu6050;
 
 static KP: f32 = 90.0;
-static KI: f32 = 0.0;//1.30;
-static KD: f32 = 0.00;
+// static KI: f32 = 0.0;//1.30;
+// static KD: f32 = 0.00;
 
 pub struct UprightCon<'a> {
     pwm: Pwm<TIM2, Tim2NoRemap, (C1, C2), (
@@ -56,18 +56,19 @@ impl<'a> UprightCon<'a> {
         }
 
         let angle = fabsf(self.data.angle);
-        let gyro = self.data.gyro;
-        let angle_i = self.data.angle_i;
+        // let gyro = self.data.gyro;
+        // let angle_i = self.data.angle_i;
 
-        let speed = (KP * angle + KI * angle_i + KD * gyro) as u32;
+        let mut speed = (KP * angle) as u32;
 
-        if speed < 1 {
-            self.pwm.set_period(1.hz());
-        } if speed >= 1 && speed <= 490 {
-            self.pwm.set_period(speed.hz());
-        } else {
-            self.pwm.set_period(490.hz());
+        if speed >= 400 {
+            speed = 400
         }
+        if speed <= 1 {
+            speed = 1
+        }
+
+        self.pwm.set_period(speed.hz())
     }
 
 }

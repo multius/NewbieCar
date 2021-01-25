@@ -166,13 +166,6 @@ impl<'a> MPU6050<'a> {
         0.10 * angle_m + 0.90 * (self.data.angle + gyro_m * UT_S)
     }
 
-    // pub fn get_gyro(&mut self) -> f32 {
-    //     let gyro_y = (self.get_gyro_y() as f32 / 65536.0) * 500.0;
-    //     let gyro_d = (self.get_angle()- self.angle);
-
-    //     0.0
-    // }
-
     pub fn cal_gyro(&self, angle: f32, gyro_y: f32) -> f32{
         let angle_d = self.data.angle;
         

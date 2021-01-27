@@ -46,7 +46,7 @@ impl<'a> UprightCon<'a> {
         }
     }
 
-    pub fn cal_to_speed(&mut self) {
+    pub fn cal_speed(&mut self) {
         if self.data.angle > 0.0 {
             self.dirpins.0.set_high().ok();
             self.dirpins.1.set_low().ok();

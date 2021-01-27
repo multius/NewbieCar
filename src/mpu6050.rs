@@ -44,7 +44,6 @@ pub struct Data {
     pub gyro_y: f32,
     pub gyro: f32,
     pub angle: f32,
-    pub angle_i: f32
 }
 
 
@@ -56,7 +55,6 @@ impl Data {
             gyro_y: 0.0,
             gyro: 0.0,
             angle: 0.0,
-            angle_i: 0.0
         }
     }
 }
@@ -168,7 +166,7 @@ impl<'a> MPU6050<'a> {
 
     pub fn cal_gyro(&self, angle: f32, gyro_y: f32) -> f32{
         let angle_d = self.data.angle;
-        
+
         ((angle - angle_d) / UT_S) * 0.9 + gyro_y * -0.1
     }
 
@@ -187,7 +185,6 @@ impl<'a> MPU6050<'a> {
             gyro_y,
             angle,
             gyro,
-            angle_i: self.data.angle_i + angle * UT_S
         };
         self.led.set_high().ok();
 

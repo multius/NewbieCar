@@ -67,13 +67,12 @@ impl<'a> PC<'a> {
         self.led.set_low().ok();
         write!(
             self.tx,
-            "\nACCEL_X: {}   ACCEL_Z: {}\nGYRO_Y: {}\nangle: {}\ngyro: {}\nangle_i: {}\n",
+            "\nACCEL_X: {}   ACCEL_Z: {}\nGYRO_Y: {}\nangle: {}\ngyro: {}\n",
             self.data.acc_x,
             self.data.acc_z,
             self.data.gyro_y,
             self.data.angle,
             self.data.gyro,
-            self.data.angle_i
         ).ok();
         self.led.set_high().ok();
     }

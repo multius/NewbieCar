@@ -88,7 +88,7 @@ unsafe fn TIM4() {
     let upright_con = get_from_global!(UPRIGHTCON, G_UPRIGHTCON);
 
     mpu6050.refresh();
-    upright_con.cal_to_speed();
+    upright_con.cal_speed();
 
     mpu6050.tim.wait().ok();
 }
@@ -115,7 +115,7 @@ fn main() -> ! {
 
     let mut delay = Delay::new(cp.SYST, clocks);
 
-    delay.delay_ms(500_u16);  //等待mpu6050模块启动
+    delay.delay_ms(100_u16);  //等待mpu6050模块启动
 
     //-------------------------------------定时器初始化
     let motor_pwm = Timer::tim2(

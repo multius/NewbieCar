@@ -1,5 +1,6 @@
 use crate::mpu6050;
 
+use nb::block;
 use stm32f1xx_hal::serial::*;
 use stm32f1xx_hal::{rcc, rcc::APB2};
 use stm32f1xx_hal::pac::USART1;
@@ -8,6 +9,11 @@ use stm32f1xx_hal::afio::MAPR;
 use stm32f1xx_hal::gpio::gpioa::{PA9, PA10};
 use stm32f1xx_hal::gpio::gpiob;
 use stm32f1xx_hal::gpio::{Alternate, PushPull, Input, Floating, Output};
+
+use stm32f1xx_hal::{
+    prelude::*,
+    serial::{Config, Serial},
+};
 
 use stm32f1xx_hal::timer::CountDownTimer;
 use stm32f1xx_hal::pac::TIM3;
@@ -22,6 +28,7 @@ type LEDPIN = gpiob::PB0<Output<PushPull>>;
 
 pub struct PC<'a> {
     tx: Tx<USART1>,
+    rx: Rx<USART1>,
     led: LEDPIN,
     data: &'a mpu6050::Data,
     pub tim: CountDownTimer<TIM3>
@@ -36,8 +43,8 @@ impl<'a> PC<'a> {
 
     pub fn init(
         usart: USART1,
-        tx: PA9<Alternate<PushPull>>,
-        rx: PA10<Input<Floating>>,
+        txpin: PA9<Alternate<PushPull>>,
+        rxpin: PA10<Input<Floating>>,
         mapr: &mut MAPR,
         config: Config,
         clocks: rcc::Clocks,
@@ -48,15 +55,16 @@ impl<'a> PC<'a> {
     ) -> PC<'a> {
         let serial = Serial::usart1(
             usart,
-            (tx, rx),
+            (txpin, rxpin),
             mapr,
             config,
             clocks,
             apb
         );
-        let (tx, _) = serial.split();
+        let (tx, rx) = serial.split();
         PC {
             tx,
+            rx,
             led,
             data,
             tim
@@ -75,5 +83,14 @@ impl<'a> PC<'a> {
             self.data.gyro,
         ).ok();
         self.led.set_high().ok();
+    }
+
+    pub fn send_char(&mut self, c: u8) {
+        if c == b'A' {
+            self.led.set_high().ok();
+        } else {
+            self.led.set_low().ok();
+        }
+        self.tx.write(c).ok();
     }
 }

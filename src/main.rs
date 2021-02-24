@@ -24,6 +24,7 @@ use core::mem::MaybeUninit;
 mod mpu6050;
 mod serial_inter;
 mod upright;
+mod hc05;
 
 use mpu6050::MPU6050;
 use serial_inter::PC;
@@ -73,7 +74,6 @@ unsafe fn TIM3() { //上位机数据传输计时器
     static mut PC: Option<serial_inter::PC> = None;
     let pc = get_from_global!(PC, G_PC);
 
-    pc.send_all_of_mpu6050();
 
     pc.tim.wait().ok();
 }
@@ -143,8 +143,8 @@ fn main() -> ! {
         &mut rcc.apb1
     ).start_count_down(mpu6050::UNIT_TIME.ms());
 
-    tim3.listen(Event::Update);
-    tim4.listen(Event::Update);
+    // tim3.listen(Event::Update);
+    // tim4.listen(Event::Update);
 
     //------------------------------------全局变量初始化
     {
@@ -167,12 +167,12 @@ fn main() -> ! {
         tim4
     );
 
-    let pc = PC::init(
+    let mut pc = PC::init(
         dp.USART1,
         gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh),
         gpioa.pa10,
         &mut afio.mapr,
-        serial::Config::default().baudrate(9600.bps()),
+        serial::Config::default().baudrate(28800.bps()),
         clocks,
         &mut rcc.apb2,
         gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
@@ -189,23 +189,37 @@ fn main() -> ! {
         unsafe { get_ptr!(G_DATA) }
     );
 
+    let mut hc05 = hc05::HC05::init(
+        dp.USART2,
+        gpioa.pa2.into_alternate_push_pull(&mut gpioa.crl),
+        gpioa.pa3,
+        gpioa.pa6,
+        gpioa.pa7.into_push_pull_output(&mut gpioa.crl),
+        &mut afio.mapr,
+        serial::Config::default().baudrate(9600.bps()),
+        clocks,
+        &mut rcc.apb1
+    );
+
     //-----------------------------------功能模块分发
     send_to_global!(mpu6050, &G_MPU6050);
 
-    send_to_global!(pc, &G_PC);
+    // send_to_global!(pc, &G_PC);
 
     send_to_global!(upright_con, &G_UPRIGHTCON);
 
     //-----------------------------------启用定时器中断
     unsafe {
-        cp.NVIC.set_priority(Interrupt::TIM3, 0x60);
-        cp.NVIC.set_priority(Interrupt::TIM4, 0x10);
+        // cp.NVIC.set_priority(Interrupt::TIM3, 0x60);
+        // cp.NVIC.set_priority(Interrupt::TIM4, 0x10);
 
-        cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
-        cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
+        // cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
+        // cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
     }
 
 
     loop {
+        let f = hc05.waiting_for_data();
+        pc.send_char(f);
     }
 } 

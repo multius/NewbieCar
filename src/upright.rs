@@ -22,6 +22,8 @@ pub struct UprightCon<'a> {
     )>,
     dirpins: (PD1<Output<PushPull>>, PD15<Output<PushPull>>),
     data: &'a mpu6050::Data,
+    speed: u32,
+    flag: bool
 }
 
 impl<'a> UprightCon<'a> {
@@ -42,7 +44,9 @@ impl<'a> UprightCon<'a> {
         UprightCon {
             data,
             dirpins,
-            pwm
+            pwm,
+            speed: 1,
+            flag: true
         }
     }
 
@@ -61,12 +65,38 @@ impl<'a> UprightCon<'a> {
 
         let mut speed = (KP * angle) as u32;
 
-        if speed >= 400 {
-            speed = 400
+        if speed >= 490 {
+            speed = 490
         }
         if speed <= 1 {
             speed = 1
         }
+        // if speed == 0 {
+        //     self.pwm.disable(Channel::C1);
+        //     self.pwm.disable(Channel::C2)
+        // } else {
+        //     self.pwm.enable(Channel::C1);
+        //     self.pwm.enable(Channel::C2)
+        // }
+
+
+        // match self.flag {
+        //     true => {
+        //         if self.speed >= 200 {
+        //             self.flag = false
+        //         } else {
+        //             self.speed += 1
+        //         }
+        //     },
+        //     false => {
+        //         if self.speed <= 1 {
+        //             self.flag = true
+        //         } else {
+        //             self.speed -= 1
+        //         }
+        //     }
+        // }
+
 
         self.pwm.set_period(speed.hz())
     }

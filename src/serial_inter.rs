@@ -1,27 +1,23 @@
 use crate::mpu6050;
 
-use nb::block;
+// use nb::block;
+
+use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::serial::*;
 use stm32f1xx_hal::{rcc, rcc::APB2};
 use stm32f1xx_hal::pac::USART1;
 use stm32f1xx_hal::afio::MAPR;
-
 use stm32f1xx_hal::gpio::gpioa::{PA9, PA10};
 use stm32f1xx_hal::gpio::gpiob;
 use stm32f1xx_hal::gpio::{Alternate, PushPull, Input, Floating, Output};
 
-use stm32f1xx_hal::{
-    prelude::*,
-    serial::{Config, Serial},
-};
-
 use embedded_hal::digital::v2::OutputPin;
-
-// use embedded_hal::serial::Write;
 
 use core::fmt::Write as write;
 
 type LEDPIN = gpiob::PB0<Output<PushPull>>;
+
+pub static BAUDRATE: u32 = 28800;
 
 pub struct PC<'a> {
     tx: Tx<USART1>,
@@ -29,7 +25,6 @@ pub struct PC<'a> {
     led: LEDPIN,
     data: &'a mpu6050::Data
 }
-
 
 
 impl<'a> PC<'a> {

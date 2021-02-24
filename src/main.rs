@@ -9,13 +9,12 @@ use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 
 //----------------------------引入hal库
-use stm32f1xx_hal::delay::Delay;
+use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::pac::{interrupt, Interrupt};
-use stm32f1xx_hal::timer::{Event, Timer};
-use stm32f1xx_hal::{pac, prelude::*, serial, timer::Tim2NoRemap};
-
-use stm32f1xx_hal::pac::{TIM3, TIM4};
-use stm32f1xx_hal::timer::CountDownTimer;
+use stm32f1xx_hal::timer::{Event, Timer, CountDownTimer};
+use stm32f1xx_hal::{pac, pac::{TIM3, TIM4}, timer::Tim2NoRemap};
+use stm32f1xx_hal::serial;
+use stm32f1xx_hal::delay::Delay;
 
 // use embedded_hal::digital::v2::OutputPin;
 
@@ -83,6 +82,7 @@ fn main() -> ! {
     }
 }
 
+
 //-------------------------------初始化设置
 fn init() {
     let mut cp = cortex_m::Peripherals::take().unwrap();
@@ -114,16 +114,12 @@ fn init() {
         1.hz(),
     );
 
-    let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1).start_count_down(500.ms());
+    let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
+        .start_count_down(500.ms());
 
-    let mut tim4 =
-        Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1).start_count_down(mpu6050::UNIT_TIME.ms());
+    let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
+        .start_count_down(mpu6050::UNIT_TIME.ms());
 
-    //------------------------------------全局变量初始化
-    {
-        let data = unsafe { get_mut_ptr!(G_DATA) };
-        *data = mpu6050::Data::new();
-    }
 
     //-----------------------------------功能模块初始化
     let mpu6050 = MPU6050::init(
@@ -142,7 +138,7 @@ fn init() {
         gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh),
         gpioa.pa10,
         &mut afio.mapr,
-        serial::Config::default().baudrate(28800.bps()),
+        serial::Config::default().baudrate(serial_inter::BAUDRATE.bps()),
         clocks,
         &mut rcc.apb2,
         gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
@@ -165,7 +161,7 @@ fn init() {
         gpioa.pa6,
         gpioa.pa7.into_push_pull_output(&mut gpioa.crl),
         &mut afio.mapr,
-        serial::Config::default().baudrate(9600.bps()),
+        serial::Config::default().baudrate(hc05::BAUDRATE.bps()),
         clocks,
         &mut rcc.apb1,
     );
@@ -192,5 +188,5 @@ fn init() {
     send_to_global!(hc05, &G_HC05);
 
     //---------------------------等待外置模块启动
-    delay.delay_ms(100_u16);
+    delay.delay_ms(1000_u16);
 }

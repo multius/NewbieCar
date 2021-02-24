@@ -1,20 +1,17 @@
-use core::fmt::Write as write;
-
 use nb::block;
+
+use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::serial::*;
 use stm32f1xx_hal::{rcc, rcc::APB1};
 use stm32f1xx_hal::pac::USART2;
 use stm32f1xx_hal::afio::MAPR;
 
-use stm32f1xx_hal::{
-    prelude::*,
-    serial::{Config, Serial},
-};
-
 use stm32f1xx_hal::gpio::gpioa::{PA2, PA3, PA6, PA7};
 use stm32f1xx_hal::gpio::{Alternate, PushPull, Input, Floating, Output};
 
 use embedded_hal::digital::v2::OutputPin;
+
+pub static BAUDRATE: u32 = 9600;
 
 pub struct HC05 {
     tx: Tx<USART2>,

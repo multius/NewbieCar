@@ -1,14 +1,12 @@
-use stm32f1xx_hal::{prelude::*, i2c, i2c::BlockingI2c, pac::I2C1, rcc, rcc::APB1};
-
+use stm32f1xx_hal::prelude::*;
+use stm32f1xx_hal::{i2c, i2c::BlockingI2c, pac::I2C1};
+use stm32f1xx_hal::{rcc, rcc::APB1};
 use stm32f1xx_hal::afio::MAPR;
-
+use stm32f1xx_hal::gpio::gpiob;
 use stm32f1xx_hal::gpio::gpiob::{PB6, PB7};
-use stm32f1xx_hal::gpio::{Alternate, OpenDrain};
+use stm32f1xx_hal::gpio::{Alternate, OpenDrain, Output, PushPull};
 
 use libm::atan2f;
-
-use stm32f1xx_hal::gpio::gpiob;
-use stm32f1xx_hal::gpio::{Output, PushPull};
 
 use embedded_hal::digital::v2::OutputPin;
 

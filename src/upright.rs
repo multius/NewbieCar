@@ -1,4 +1,6 @@
 use libm::fabsf;
+
+use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::pwm::{Channel, Pwm, C1, C2};
 use stm32f1xx_hal::timer::Tim2NoRemap;
 use stm32f1xx_hal::pac::TIM2;
@@ -7,7 +9,6 @@ use stm32f1xx_hal::gpio::gpiod::{PD1, PD15};
 use stm32f1xx_hal::gpio::{Alternate, PushPull, Output};
 
 use embedded_hal::digital::v2::OutputPin;
-use stm32f1xx_hal::prelude::*;
 
 use crate::mpu6050;
 

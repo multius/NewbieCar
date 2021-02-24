@@ -45,6 +45,7 @@ impl HC05 {
         );
         let (tx, rx) = serial.split();
         let mut hc05 = HC05 {
+            
             tx,
             rx,
             intpin,

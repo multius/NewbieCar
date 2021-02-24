@@ -7,9 +7,6 @@ use stm32f1xx_hal::gpio::{Alternate, OpenDrain};
 
 use libm::atan2f;
 
-use stm32f1xx_hal::timer::CountDownTimer;
-use stm32f1xx_hal::pac::TIM4;
-
 use stm32f1xx_hal::gpio::gpiob;
 use stm32f1xx_hal::gpio::{Output, PushPull};
 
@@ -33,8 +30,7 @@ pub struct MPU6050<'a> {
         (PB6<Alternate<OpenDrain>>,PB7<Alternate<OpenDrain>>)
     >,
     led: LEDPIN,
-    data: &'a mut Data,
-    pub tim: CountDownTimer<TIM4>,
+    data: &'a mut Data
 }
 
 #[derive(Clone, Copy)]
@@ -69,8 +65,7 @@ impl<'a> MPU6050<'a> {
         pb6: PB6<Alternate<OpenDrain>>,
         pb7: PB7<Alternate<OpenDrain>>,
         led: LEDPIN,
-        data: &'a mut Data,
-        tim:CountDownTimer<TIM4>
+        data: &'a mut Data
     ) -> MPU6050<'a> {
         let i2c = BlockingI2c::i2c1(
             i2c,
@@ -84,11 +79,13 @@ impl<'a> MPU6050<'a> {
             1000,
             1000
         );
+
+        *data = Data::new();
+
         let mut mpu6050 = MPU6050 {
             i2c,
             led,
-            data,
-            tim
+            data
         };
 
         mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);

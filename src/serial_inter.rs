@@ -15,9 +15,6 @@ use stm32f1xx_hal::{
     serial::{Config, Serial},
 };
 
-use stm32f1xx_hal::timer::CountDownTimer;
-use stm32f1xx_hal::pac::TIM3;
-
 use embedded_hal::digital::v2::OutputPin;
 
 // use embedded_hal::serial::Write;
@@ -30,8 +27,7 @@ pub struct PC<'a> {
     tx: Tx<USART1>,
     rx: Rx<USART1>,
     led: LEDPIN,
-    data: &'a mpu6050::Data,
-    pub tim: CountDownTimer<TIM3>
+    data: &'a mpu6050::Data
 }
 
 
@@ -50,8 +46,7 @@ impl<'a> PC<'a> {
         clocks: rcc::Clocks,
         apb: &mut APB2,
         led: LEDPIN,
-        data: &'static mpu6050::Data,
-        tim: CountDownTimer<TIM3>
+        data: &'static mpu6050::Data
     ) -> PC<'a> {
         let serial = Serial::usart1(
             usart,
@@ -66,8 +61,7 @@ impl<'a> PC<'a> {
             tx,
             rx,
             led,
-            data,
-            tim
+            data
         }
     }
 

@@ -64,7 +64,7 @@ impl<'a> MPU6050<'a> {
         pb7: PB7<Alternate<OpenDrain>>,
         led: LEDPIN,
         data: &'a mut Data
-    ) -> MPU6050<'a> {
+    ) -> Self {
         let i2c = BlockingI2c::i2c1(
             i2c,
             (pb6, pb7),

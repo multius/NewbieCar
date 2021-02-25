@@ -13,7 +13,6 @@ use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::pac::{interrupt, Interrupt};
 use stm32f1xx_hal::timer::{Event, Timer, CountDownTimer};
 use stm32f1xx_hal::{pac, pac::{TIM3, TIM4}, timer::Tim2NoRemap};
-use stm32f1xx_hal::serial;
 use stm32f1xx_hal::delay::Delay;
 
 // use embedded_hal::digital::v2::OutputPin;
@@ -27,11 +26,12 @@ mod hc05;
 mod macro_lib;
 mod mpu6050;
 mod serial_inter;
-mod upright;
+mod motion_control;
+mod motor;
 
 use mpu6050::MPU6050;
 use serial_inter::PC;
-use upright::UprightCon;
+use motion_control::MotionCon;
 
 //------------------------------------全局变量
 static G_TIM3: Mutex<RefCell<Option<CountDownTimer<TIM3>>>> = Mutex::new(RefCell::new(None));
@@ -40,9 +40,11 @@ static G_TIM4: Mutex<RefCell<Option<CountDownTimer<TIM4>>>> = Mutex::new(RefCell
 static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell::new(None));
 static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
 
+static G_MOTIONCON: Mutex<RefCell<Option<motion_control::MotionCon>>> = Mutex::new(RefCell::new(None));
+static mut G_STATE: MaybeUninit<motion_control::State> = MaybeUninit::uninit();
+
 static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
 static G_HC05: Mutex<RefCell<Option<hc05::HC05>>> = Mutex::new(RefCell::new(None));
-static G_UPRIGHTCON: Mutex<RefCell<Option<upright::UprightCon>>> = Mutex::new(RefCell::new(None));
 
 //----------------------------------------定时器中断函数
 #[interrupt]
@@ -61,12 +63,12 @@ unsafe fn TIM4() {
     let tim4 = get_from_global!(TIM4, G_TIM4);
 
     static mut MPU6050: Option<mpu6050::MPU6050> = None;
-    static mut UPRIGHTCON: Option<upright::UprightCon> = None;
+    static mut MOTIONCON: Option<motion_control::MotionCon> = None;
     let mpu6050 = get_from_global!(MPU6050, G_MPU6050);
-    let upright_con = get_from_global!(UPRIGHTCON, G_UPRIGHTCON);
+    let upright_con = get_from_global!(MOTIONCON, G_MOTIONCON);
 
     mpu6050.refresh();
-    upright_con.cal_speed();
+    upright_con.adjust_speed();
 
     tim4.wait().ok();
 }
@@ -144,13 +146,18 @@ fn init() {
         unsafe { get_ptr!(G_DATA) },
     );
 
-    let upright_con = UprightCon::init(
+    let motor = motor::Motor::init(
         motor_pwm,
         (
             gpiod.pd1.into_push_pull_output(&mut gpiod.crl),
             gpiod.pd15.into_push_pull_output(&mut gpiod.crh),
         ),
+    );
+
+    let motion_con = MotionCon::init(
+        motor,
         unsafe { get_ptr!(G_DATA) },
+        unsafe { get_ptr!(G_STATE) }
     );
 
     let hc05 = hc05::HC05::init(
@@ -163,6 +170,7 @@ fn init() {
         clocks,
         &mut rcc.apb1,
     );
+    
 
     //----------------------------------------定时器启用
     unsafe {
@@ -182,7 +190,7 @@ fn init() {
 
     send_to_global!(mpu6050, &G_MPU6050);
     send_to_global!(pc, &G_PC);
-    send_to_global!(upright_con, &G_UPRIGHTCON);
+    send_to_global!(motion_con, &G_MOTIONCON);
     send_to_global!(hc05, &G_HC05);
 
     //---------------------------等待外置模块启动

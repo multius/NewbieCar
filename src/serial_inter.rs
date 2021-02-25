@@ -15,14 +15,12 @@ use embedded_hal::digital::v2::OutputPin;
 
 use core::fmt::Write as write;
 
-type LEDPIN = gpiob::PB0<Output<PushPull>>;
 
 pub static BAUDRATE: u32 = 28800;
 
 pub struct PC<'a> {
     tx: Tx<USART1>,
     rx: Rx<USART1>,
-    led: LEDPIN,
     data: &'a mpu6050::Data
 }
 
@@ -39,7 +37,6 @@ impl<'a> PC<'a> {
         mapr: &mut MAPR,
         clocks: rcc::Clocks,
         apb: &mut APB2,
-        led: LEDPIN,
         data: &'static mpu6050::Data
     ) -> PC<'a> {
         let serial = Serial::usart1(
@@ -54,13 +51,11 @@ impl<'a> PC<'a> {
         PC {
             tx,
             rx,
-            led,
             data
         }
     }
 
     pub fn send_all_of_mpu6050(&mut self) {
-        self.led.set_low().ok();
         write!(
             self.tx,
             "\nACCEL_X: {}   ACCEL_Z: {}\nGYRO_Y: {}\nangle: {}\ngyro: {}\n",
@@ -70,15 +65,9 @@ impl<'a> PC<'a> {
             self.data.angle,
             self.data.gyro,
         ).ok();
-        self.led.set_high().ok();
     }
 
     pub fn send_char(&mut self, c: u8) {
-        if c == b'A' {
-            self.led.set_high().ok();
-        } else {
-            self.led.set_low().ok();
-        }
         self.tx.write(c).ok();
     }
 }

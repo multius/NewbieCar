@@ -9,7 +9,7 @@ use stm32f1xx_hal::afio::MAPR;
 use stm32f1xx_hal::gpio::gpioa::{PA2, PA3, PA6, PA7};
 use stm32f1xx_hal::gpio::{Alternate, PushPull, Input, Floating, Output};
 
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::digital::v2::{OutputPin, InputPin};
 
 pub static BAUDRATE: u32 = 9600;
 
@@ -54,8 +54,16 @@ impl HC05 {
         hc05
     }
 
-    pub fn waiting_for_data(&mut self) -> u8 {
+    pub fn waiting_data(&mut self) -> u8 {
         block!(self.rx.read()).unwrap()
+    }
+
+    pub fn waiting_pair(&mut self) {
+        loop {
+            if self.intpin.is_high().unwrap() == true {
+                break
+            }
+        }
     }
 
 }

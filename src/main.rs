@@ -41,7 +41,7 @@ static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell:
 static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
 
 static G_MOTIONCON: Mutex<RefCell<Option<motion_control::MotionCon>>> = Mutex::new(RefCell::new(None));
-static mut G_STATE: MaybeUninit<motion_control::State> = MaybeUninit::uninit();
+static mut G_STATE: MaybeUninit<motion_control::StateType> = MaybeUninit::uninit();
 
 static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
 static G_HC05: Mutex<RefCell<Option<hc05::HC05>>> = Mutex::new(RefCell::new(None));
@@ -65,10 +65,10 @@ unsafe fn TIM4() {
     static mut MPU6050: Option<mpu6050::MPU6050> = None;
     static mut MOTIONCON: Option<motion_control::MotionCon> = None;
     let mpu6050 = get_from_global!(MPU6050, G_MPU6050);
-    let upright_con = get_from_global!(MOTIONCON, G_MOTIONCON);
+    let motion_con = get_from_global!(MOTIONCON, G_MOTIONCON);
 
     mpu6050.refresh();
-    upright_con.adjust_speed();
+    motion_con.adjust_speed();
 
     tim4.wait().ok();
 }
@@ -77,10 +77,25 @@ unsafe fn TIM4() {
 #[entry]
 fn main() -> ! {
     init();
+    
+    static mut HC05: Option<hc05::HC05> = None;
+    let hc05 = unsafe {
+        get_from_global!(HC05, G_HC05)
+    };
+
+    static mut PC: Option<serial_inter::PC> = None;
+    let pc = unsafe {
+        get_from_global!(PC, G_PC)
+    };
+
+    let state = unsafe {
+        get_mut_ptr!(G_STATE)
+    };
+    
 
     loop {
-        // let f = hc05.waiting_for_data();
-        // pc.send_char(f);
+        let f = hc05.waiting_data();
+        pc.send_char(f);
     }
 }
 
@@ -105,6 +120,11 @@ fn init() {
     let mut gpiod = dp.GPIOD.split(&mut rcc.apb2);
 
     let mut delay = Delay::new(cp.SYST, clocks);
+
+
+    //---------------------------等待外置模块启动
+    delay.delay_ms(500_u16);
+
 
     //-------------------------------------定时器初始化
     let motor_pwm = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1).pwm::<Tim2NoRemap, _, _, _>(
@@ -142,7 +162,6 @@ fn init() {
         &mut afio.mapr,
         clocks,
         &mut rcc.apb2,
-        gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
         unsafe { get_ptr!(G_DATA) },
     );
 
@@ -170,7 +189,7 @@ fn init() {
         clocks,
         &mut rcc.apb1,
     );
-    
+
 
     //----------------------------------------定时器启用
     unsafe {
@@ -184,6 +203,7 @@ fn init() {
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
     }
 
+
     //-----------------------------------功能模块分发
     send_to_global!(tim3, &G_TIM3);
     send_to_global!(tim4, &G_TIM4);
@@ -192,7 +212,4 @@ fn init() {
     send_to_global!(pc, &G_PC);
     send_to_global!(motion_con, &G_MOTIONCON);
     send_to_global!(hc05, &G_HC05);
-
-    //---------------------------等待外置模块启动
-    delay.delay_ms(1000_u16);
 }

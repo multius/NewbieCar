@@ -12,7 +12,7 @@ static KP: f32 = 90.0;
 
 pub struct MotionCon<'a> {
     data: &'a mpu6050::Data,
-    state: &'a State,
+    state: &'a StateType,
     motor: motor::Motor
 }
 
@@ -20,7 +20,7 @@ impl<'a> MotionCon<'a> {
     pub fn init(
         motor: motor::Motor,
         data: &'a mpu6050::Data,
-        state: &'a State
+        state: &'a StateType
     ) -> Self {
 
         MotionCon {
@@ -32,11 +32,9 @@ impl<'a> MotionCon<'a> {
 
     pub fn adjust_speed(&mut self) {
         match self.state {
-            Balance => {
-                self.balance_adjust()
-            }
-            Forward => {}
-            Fuck => {}
+            StateType::Balance => { self.balance_adjust() }
+            StateType::Forward => { self.forward_adjust() }
+            StateType::Backward => { self.backward_adjust() }
         }
     }
 
@@ -63,16 +61,21 @@ impl<'a> MotionCon<'a> {
         self.motor.set_speed(speed)
     }
 
+    fn forward_adjust(&mut self) {
+    }
+
+    fn backward_adjust(&mut self){
+    }
 }
 
-pub enum State {
+pub enum StateType {
     Balance,
     Forward,
     Backward
 }
 
-impl State {
+impl StateType {
     pub fn new() -> Self {
-        State::Balance
+        StateType::Balance
     }
 }

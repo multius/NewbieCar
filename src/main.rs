@@ -48,7 +48,6 @@ static G_UPRIGHTCON: Mutex<RefCell<Option<upright::UprightCon>>> = Mutex::new(Re
 #[interrupt]
 #[allow(non_snake_case)]
 unsafe fn TIM3() {
-    //上位机数据传输计时器
     static mut TIM3: Option<CountDownTimer<TIM3>> = None;
     let tim3 = get_from_global!(TIM3, G_TIM3);
 
@@ -71,6 +70,7 @@ unsafe fn TIM4() {
 
     tim4.wait().ok();
 }
+
 
 #[entry]
 fn main() -> ! {
@@ -138,7 +138,6 @@ fn init() {
         gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh),
         gpioa.pa10,
         &mut afio.mapr,
-        serial::Config::default().baudrate(serial_inter::BAUDRATE.bps()),
         clocks,
         &mut rcc.apb2,
         gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
@@ -161,7 +160,6 @@ fn init() {
         gpioa.pa6,
         gpioa.pa7.into_push_pull_output(&mut gpioa.crl),
         &mut afio.mapr,
-        serial::Config::default().baudrate(hc05::BAUDRATE.bps()),
         clocks,
         &mut rcc.apb1,
     );

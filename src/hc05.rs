@@ -28,21 +28,21 @@ impl HC05 {
         intpin: PA6<Input<Floating>>,
         keypin: PA7<Output<PushPull>>,
         mapr: &mut MAPR,
-        config: Config,
         clocks: rcc::Clocks,
         apb: &mut APB1,
     ) -> HC05 {
+        
         let serial = Serial::usart2(
             usart,
             (txpin, rxpin),
             mapr,
-            config,
+            Config::default().baudrate(BAUDRATE.bps()),
             clocks,
             apb
         );
         let (tx, rx) = serial.split();
+
         let mut hc05 = HC05 {
-            
             tx,
             rx,
             intpin,

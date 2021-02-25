@@ -37,7 +37,6 @@ impl<'a> PC<'a> {
         txpin: PA9<Alternate<PushPull>>,
         rxpin: PA10<Input<Floating>>,
         mapr: &mut MAPR,
-        config: Config,
         clocks: rcc::Clocks,
         apb: &mut APB2,
         led: LEDPIN,
@@ -47,7 +46,7 @@ impl<'a> PC<'a> {
             usart,
             (txpin, rxpin),
             mapr,
-            config,
+            Config::default().baudrate(BAUDRATE.bps()),
             clocks,
             apb
         );

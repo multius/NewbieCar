@@ -78,8 +78,6 @@ impl<'a> MPU6050<'a> {
             1000
         );
 
-        *data = Data::new();
-
         let mut mpu6050 = MPU6050 {
             i2c,
             led,

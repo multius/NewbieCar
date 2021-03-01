@@ -29,8 +29,8 @@ impl Motor{
         pwm.set_period(1.hz());
         pwm.set_duty(Channel::C1, pwm.get_max_duty()/2);
         pwm.set_duty(Channel::C2, pwm.get_max_duty()/2);
-        pwm.enable(Channel::C1);
-        pwm.enable(Channel::C2);
+        // pwm.enable(Channel::C1);
+        // pwm.enable(Channel::C2);
 
         Motor {
             pwm,
@@ -49,6 +49,11 @@ impl Motor{
     }
 
     pub fn set_speed(&mut self, speed: u32) {
-        self.pwm.set_period(speed.hz())
+        if speed == 0 {
+            self.pwm.disable(Channel::C1)
+        } else {
+            self.pwm.enable(Channel::C1);
+            self.pwm.set_period(speed.hz())
+        }
     }
 }

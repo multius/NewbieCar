@@ -35,6 +35,8 @@ impl<'a> MotionCon<'a> {
             StateType::Balance => { self.balance_adjust() }
             StateType::Forward => { self.forward_adjust() }
             StateType::Backward => { self.backward_adjust() }
+            StateType::TurnLeft => { self.turn_left_adjust() }
+            StateType::TurnRight => { self.turn_right_adjust() }
         }
     }
 
@@ -51,12 +53,12 @@ impl<'a> MotionCon<'a> {
 
         let mut speed = (KP * angle) as u32;
 
-        if speed >= 490 {
-            speed = 490
-        }
-        if speed <= 1 {
-            speed = 1
-        }
+        // if speed >= 490 {
+        //     speed = 490
+        // }
+        // if speed <= 1 {
+        //     speed = 1
+        // }
 
         self.motor.set_speed(speed)
     }
@@ -64,14 +66,22 @@ impl<'a> MotionCon<'a> {
     fn forward_adjust(&mut self) {
     }
 
-    fn backward_adjust(&mut self){
+    fn backward_adjust(&mut self) {
+    }
+
+    fn turn_left_adjust(&mut self) {
+    }
+
+    fn turn_right_adjust(&mut self) {
     }
 }
 
 pub enum StateType {
     Balance,
     Forward,
-    Backward
+    Backward,
+    TurnLeft,
+    TurnRight
 }
 
 impl StateType {

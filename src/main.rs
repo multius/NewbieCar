@@ -77,7 +77,7 @@ unsafe fn TIM4() {
 #[entry]
 fn main() -> ! {
     init();
-    
+
     static mut HC05: Option<hc05::HC05> = None;
     let hc05 = unsafe {
         get_from_global!(HC05, G_HC05)
@@ -91,11 +91,20 @@ fn main() -> ! {
     let state = unsafe {
         get_mut_ptr!(G_STATE)
     };
-    
+
 
     loop {
-        let f = hc05.waiting_data();
-        pc.send_char(f);
+        let flag = hc05.waiting_data();
+        pc.send_char(flag);
+        
+        match flag {
+            b'G' => { *state = motion_control::StateType::Forward }
+            b'H' => { *state = motion_control::StateType::TurnLeft }
+            b'I' => { *state = motion_control::StateType::Balance }
+            b'J' => { *state = motion_control::StateType::TurnRight }
+            b'K' => { *state = motion_control::StateType::Backward }
+            _ => {}
+        }
     }
 }
 
@@ -143,6 +152,13 @@ fn init() {
         .start_count_down(mpu6050::UNIT_TIME.ms());
 
 
+    //------------------------------------全局变量初始化
+    unsafe {
+        *get_mut_ptr!(G_DATA) = mpu6050::Data::new();
+        *get_mut_ptr!(G_STATE) = motion_control::StateType::new();
+    }
+
+
     //-----------------------------------功能模块初始化
     let mpu6050 = MPU6050::init(
         dp.I2C1,
@@ -152,7 +168,7 @@ fn init() {
         gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl),
         gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl),
         gpiob.pb5.into_push_pull_output(&mut gpiob.crl),
-        unsafe { get_mut_ptr!(G_DATA) },
+        unsafe { get_mut_ptr!(G_DATA) }
     );
 
     let pc = PC::init(

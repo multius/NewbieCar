@@ -1,12 +1,10 @@
 use libm::fabsf;
 
-use embedded_hal::digital::v2::OutputPin;
-
 use crate::mpu6050;
 use crate::motor;
 
 
-static KP: f32 = 90.0;
+static KP: f32 = 110.0;
 // static KI: f32 = 0.0;//1.30;
 // static KD: f32 = 0.00;
 
@@ -30,7 +28,7 @@ impl<'a> MotionCon<'a> {
         }
     }
 
-    pub fn adjust_speed(&mut self) {
+    pub fn adjust_motors(&mut self) {
         match self.state {
             StateType::Balance => { self.balance_adjust() }
             StateType::Forward => { self.forward_adjust() }
@@ -42,23 +40,16 @@ impl<'a> MotionCon<'a> {
 
     fn balance_adjust(&mut self) {
         if self.data.angle > 0.0 {
-            self.motor.set_direction(true)
+            self.motor.set_dir(true)
         } else {
-            self.motor.set_direction(false)
+            self.motor.set_dir(false)
         }
 
         let angle = fabsf(self.data.angle);
         // let gyro = self.data.gyro;
         // let angle_i = self.data.angle_i;
 
-        let mut speed = (KP * angle) as u32;
-
-        // if speed >= 490 {
-        //     speed = 490
-        // }
-        // if speed <= 1 {
-        //     speed = 1
-        // }
+        let speed = (KP * angle) as u32;
 
         self.motor.set_speed(speed)
     }

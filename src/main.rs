@@ -53,6 +53,11 @@ unsafe fn TIM3() {
     static mut TIM3: Option<CountDownTimer<TIM3>> = None;
     let tim3 = get_from_global!(TIM3, G_TIM3);
 
+    // static mut PC: Option<serial_inter::PC> = None;
+    // let pc = get_from_global!(PC, G_PC);
+
+    // pc.send_all_of_mpu6050();
+
     tim3.wait().ok();
 }
 
@@ -68,7 +73,7 @@ unsafe fn TIM4() {
     let motion_con = get_from_global!(MOTIONCON, G_MOTIONCON);
 
     mpu6050.refresh();
-    motion_con.adjust_speed();
+    motion_con.adjust_motors();
 
     tim4.wait().ok();
 }
@@ -94,6 +99,7 @@ fn main() -> ! {
 
 
     loop {
+
         let flag = hc05.waiting_data();
         pc.send_char(flag);
         

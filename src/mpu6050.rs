@@ -12,15 +12,12 @@ use embedded_hal::digital::v2::OutputPin;
 
 type LEDPIN = gpiob::PB5<Output<PushPull>>;
 
-// static X_GYRO_OFFSET: i16 = 78;
-static Y_GYRO_OFFSET: i32 = -127;
-// static Z_GYRO_OFFSET: i16 = -44;
-static X_ACC_OFFSET: i32 = -900;
-// static Y_ACC_OFFSET: i16 = -30;
-static Z_ACC_OFFSET: i32 = -955;
+static Y_GYRO_OFFSET: i32 = 153;
+static X_ACC_OFFSET: i32 = -507;
+static Z_ACC_OFFSET: i32 = -1520;
 
-pub static UNIT_TIME: u32 = 50;//ms
-static UT_S: f32 = 0.05;
+pub static UNIT_TIME: u32 = 1;//ms
+static UT_S: f32 = 0.001;
 
 pub struct MPU6050<'a> {
     i2c: BlockingI2c<

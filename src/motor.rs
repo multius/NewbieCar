@@ -8,6 +8,8 @@ use stm32f1xx_hal::gpio::{Alternate, PushPull, Output};
 
 use embedded_hal::digital::v2::OutputPin;
 
+static MAX_SPEED: u32 = 490;
+
 pub struct Motor {
     pwm: Pwm<TIM2, Tim2NoRemap, (C1, C2), (
         PA0<Alternate<PushPull>>,
@@ -38,7 +40,7 @@ impl Motor{
         }
     }
 
-    pub fn set_direction(&mut self, forward: bool) {
+    pub fn set_dir(&mut self, forward: bool) {
         if forward {
             self.dirpins.0.set_high().ok();
             self.dirpins.1.set_low().ok();
@@ -50,9 +52,15 @@ impl Motor{
 
     pub fn set_speed(&mut self, speed: u32) {
         if speed == 0 {
-            self.pwm.disable(Channel::C1)
+            self.pwm.disable(Channel::C1);
+            self.pwm.disable(Channel::C2)
+        } else if speed >= MAX_SPEED {
+            self.pwm.enable(Channel::C1);
+            self.pwm.enable(Channel::C2);
+            self.pwm.set_period(MAX_SPEED.hz())
         } else {
             self.pwm.enable(Channel::C1);
+            self.pwm.enable(Channel::C2);
             self.pwm.set_period(speed.hz())
         }
     }

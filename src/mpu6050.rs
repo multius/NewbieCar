@@ -16,8 +16,8 @@ static Y_GYRO_OFFSET: i32 = 153;
 static X_ACC_OFFSET: i32 = -507;
 static Z_ACC_OFFSET: i32 = -1520;
 
-pub static UNIT_TIME: u32 = 1;//ms
-static UT_S: f32 = 0.001;
+pub static UNIT_TIME: u32 = 50;//ms
+static UT_S: f32 = 0.05;
 
 pub struct MPU6050<'a> {
     i2c: BlockingI2c<

@@ -2,31 +2,31 @@ use crate::mpu6050;
 use crate::motor;
 
 
-static KP: f32 = 500.0;
+static KP: f32 = 280.0;
 // static KI: f32 = 0.0;//1.30;
 // static KD: f32 = 0.00;
 
 pub struct MotionCon<'a> {
     data: &'a mpu6050::Data,
     state: &'a StateType,
-    motor: motor::Motor
+    motor_sig: &'a mut motor::Signal
 }
 
 impl<'a> MotionCon<'a> {
     pub fn init(
-        motor: motor::Motor,
+        motor_sig: &'a mut motor::Signal,
         data: &'a mpu6050::Data,
         state: &'a StateType
     ) -> Self {
 
         MotionCon {
             data,
-            motor,
+            motor_sig,
             state
         }
     }
 
-    pub fn adjust_motors(&mut self) {
+    pub fn adjust_motion(&mut self) {
         match self.state {
             StateType::Balance => { self.balance_adjust() }
             StateType::Forward => { self.forward_adjust() }
@@ -43,7 +43,7 @@ impl<'a> MotionCon<'a> {
 
         let speed = (KP * angle) as i32;
 
-        self.motor.set_speed(speed)
+        self.motor_sig.set_speed(speed)
     }
 
     fn forward_adjust(&mut self) {

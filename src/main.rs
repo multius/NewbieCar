@@ -43,6 +43,9 @@ static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
 static G_MOTIONCON: Mutex<RefCell<Option<motion_control::MotionCon>>> = Mutex::new(RefCell::new(None));
 static mut G_STATE: MaybeUninit<motion_control::StateType> = MaybeUninit::uninit();
 
+static G_MOTOR: Mutex<RefCell<Option<motor::Motor>>> = Mutex::new(RefCell::new(None));
+static mut G_SIGNAL: MaybeUninit<motor::Signal> = MaybeUninit::uninit();
+
 static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
 static G_HC05: Mutex<RefCell<Option<hc05::HC05>>> = Mutex::new(RefCell::new(None));
 
@@ -53,10 +56,10 @@ unsafe fn TIM3() {
     static mut TIM3: Option<CountDownTimer<TIM3>> = None;
     let tim3 = get_from_global!(TIM3, G_TIM3);
 
-    // static mut PC: Option<serial_inter::PC> = None;
-    // let pc = get_from_global!(PC, G_PC);
+    static mut MOTOR: Option<motor::Motor> = None;
+    let motor = get_from_global!(MOTOR, G_MOTOR);
 
-    // pc.send_all_of_mpu6050();
+    motor.adjust_speed();
 
     tim3.wait().ok();
 }
@@ -73,7 +76,7 @@ unsafe fn TIM4() {
     let motion_con = get_from_global!(MOTIONCON, G_MOTIONCON);
 
     mpu6050.refresh();
-    motion_con.adjust_motors();
+    motion_con.adjust_motion();
 
     tim4.wait().ok();
 }
@@ -152,7 +155,7 @@ fn init() {
     );
 
     let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
-        .start_count_down(500.ms());
+        .start_count_down(999.ms());
 
     let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
         .start_count_down(mpu6050::UNIT_TIME.ms());
@@ -162,6 +165,7 @@ fn init() {
     unsafe {
         *get_mut_ptr!(G_DATA) = mpu6050::Data::new();
         *get_mut_ptr!(G_STATE) = motion_control::StateType::new();
+        *get_mut_ptr!(G_SIGNAL) = motor::Signal::new();
     }
 
 
@@ -193,10 +197,11 @@ fn init() {
             gpiod.pd1.into_push_pull_output(&mut gpiod.crl),
             gpiod.pd15.into_push_pull_output(&mut gpiod.crh),
         ),
+        unsafe { get_ptr!(G_SIGNAL) }
     );
 
     let motion_con = MotionCon::init(
-        motor,
+        unsafe { get_mut_ptr!(G_SIGNAL) },
         unsafe { get_ptr!(G_DATA) },
         unsafe { get_ptr!(G_STATE) }
     );
@@ -218,8 +223,8 @@ fn init() {
         tim3.listen(Event::Update);
         tim4.listen(Event::Update);
 
-        cp.NVIC.set_priority(Interrupt::TIM3, 0x60);
-        cp.NVIC.set_priority(Interrupt::TIM4, 0x10);
+        cp.NVIC.set_priority(Interrupt::TIM3, 0x70);
+        cp.NVIC.set_priority(Interrupt::TIM4, 0x60);
 
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
@@ -232,6 +237,7 @@ fn init() {
 
     send_to_global!(mpu6050, &G_MPU6050);
     send_to_global!(pc, &G_PC);
+    send_to_global!(motor, &G_MOTOR);
     send_to_global!(motion_con, &G_MOTIONCON);
     send_to_global!(hc05, &G_HC05);
 }

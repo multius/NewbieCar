@@ -6,30 +6,44 @@ use stm32f1xx_hal::gpio::gpioa::{PA0, PA1};
 use stm32f1xx_hal::gpio::gpiod::{PD1, PD15};
 use stm32f1xx_hal::gpio::{Alternate, PushPull, Output};
 
-use embedded_hal::{blocking::spi, digital::v2::OutputPin};
+use embedded_hal::digital::v2::OutputPin;
 
-static MAX_SPEED: u32 = 10000;
-static MAX_ACC: i32 = 20;
+static MAX_SPEED: u32 = 9000;
+static MAX_ACC: i32 = 50;
 
 
-pub struct Motor {
+pub struct Signal(i32);
+
+impl Signal {
+    pub fn new() -> Self {
+        Signal(100)
+    }
+
+    pub fn set_speed(&mut self, speed: i32) {
+        self.0 = speed
+    }
+}
+
+
+pub struct Motor<'a> {
     pwm: Pwm<TIM2, Tim2NoRemap, (C1, C2), (
         PA0<Alternate<PushPull>>,
         PA1<Alternate<PushPull>>
     )>,
     dirpins: (PD1<Output<PushPull>>, PD15<Output<PushPull>>),
-    speed: i32
+    speed: i32,
+    signal: &'a Signal
 }
 
-
-impl Motor{
+impl<'a> Motor<'a> {
     pub fn init(
         mut pwm: Pwm<TIM2, Tim2NoRemap, (C1, C2), (
             PA0<Alternate<PushPull>>,
             PA1<Alternate<PushPull>>
         )>,
         dirpins: (PD1<Output<PushPull>>, PD15<Output<PushPull>>),
-    ) -> Motor {
+        signal: &'a Signal
+    ) -> Self {
 
         pwm.set_period(1.hz());
         pwm.set_duty(Channel::C1, pwm.get_max_duty()/100);
@@ -40,7 +54,8 @@ impl Motor{
         Motor {
             pwm,
             dirpins,
-            speed: 0
+            speed: 0,
+            signal
         }
     }
 
@@ -54,7 +69,8 @@ impl Motor{
         }
     }
 
-    pub fn set_speed(&mut self, mut speed: i32) {
+    pub fn adjust_speed(&mut self) {
+        let mut speed = self.signal.0;
 
         if (speed - self.speed).abs() >= MAX_ACC {
             if speed > self.speed {

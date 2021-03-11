@@ -1,10 +1,8 @@
-use libm::fabsf;
-
 use crate::mpu6050;
 use crate::motor;
 
 
-static KP: f32 = 110.0;
+static KP: f32 = 500.0;
 // static KI: f32 = 0.0;//1.30;
 // static KD: f32 = 0.00;
 
@@ -39,17 +37,11 @@ impl<'a> MotionCon<'a> {
     }
 
     fn balance_adjust(&mut self) {
-        if self.data.angle > 0.0 {
-            self.motor.set_dir(true)
-        } else {
-            self.motor.set_dir(false)
-        }
-
-        let angle = fabsf(self.data.angle);
+        let angle = self.data.angle;
         // let gyro = self.data.gyro;
         // let angle_i = self.data.angle_i;
 
-        let speed = (KP * angle) as u32;
+        let speed = (KP * angle) as i32;
 
         self.motor.set_speed(speed)
     }

@@ -9,40 +9,25 @@ use stm32f1xx_hal::gpio::{Alternate, PushPull, Output};
 use embedded_hal::digital::v2::OutputPin;
 
 static MAX_SPEED: u32 = 9000;
-static MAX_ACC: i32 = 50;
+static MAX_ACC: i32 = 100;
 
 
-pub struct Signal(i32);
-
-impl Signal {
-    pub fn new() -> Self {
-        Signal(100)
-    }
-
-    pub fn set_speed(&mut self, speed: i32) {
-        self.0 = speed
-    }
-}
-
-
-pub struct Motor<'a> {
+pub struct Motors {
     pwm: Pwm<TIM2, Tim2NoRemap, (C1, C2), (
         PA0<Alternate<PushPull>>,
         PA1<Alternate<PushPull>>
     )>,
     dirpins: (PD1<Output<PushPull>>, PD15<Output<PushPull>>),
-    speed: i32,
-    signal: &'a Signal
+    speed: i32
 }
 
-impl<'a> Motor<'a> {
+impl Motors {
     pub fn init(
         mut pwm: Pwm<TIM2, Tim2NoRemap, (C1, C2), (
             PA0<Alternate<PushPull>>,
             PA1<Alternate<PushPull>>
         )>,
-        dirpins: (PD1<Output<PushPull>>, PD15<Output<PushPull>>),
-        signal: &'a Signal
+        dirpins: (PD1<Output<PushPull>>, PD15<Output<PushPull>>)
     ) -> Self {
 
         pwm.set_period(1.hz());
@@ -51,11 +36,10 @@ impl<'a> Motor<'a> {
         // pwm.enable(Channel::C1);
         // pwm.enable(Channel::C2);
 
-        Motor {
+        Motors {
             pwm,
             dirpins,
-            speed: 0,
-            signal
+            speed: 0
         }
     }
 
@@ -69,9 +53,7 @@ impl<'a> Motor<'a> {
         }
     }
 
-    pub fn adjust_speed(&mut self) {
-        let mut speed = self.signal.0;
-
+    pub fn set_speed(&mut self, mut speed: i32) {
         if (speed - self.speed).abs() >= MAX_ACC {
             if speed > self.speed {
                 speed = self.speed + MAX_ACC

@@ -9,19 +9,19 @@ static KP: f32 = 280.0;
 pub struct MotionCon<'a> {
     data: &'a mpu6050::Data,
     state: &'a StateType,
-    motor_sig: &'a mut motor::Signal
+    motors: motor::Motors
 }
 
 impl<'a> MotionCon<'a> {
     pub fn init(
-        motor_sig: &'a mut motor::Signal,
+        motors: motor::Motors,
         data: &'a mpu6050::Data,
         state: &'a StateType
     ) -> Self {
 
         MotionCon {
             data,
-            motor_sig,
+            motors,
             state
         }
     }
@@ -43,7 +43,7 @@ impl<'a> MotionCon<'a> {
 
         let speed = (KP * angle) as i32;
 
-        self.motor_sig.set_speed(speed)
+        self.motors.set_speed(speed)
     }
 
     fn forward_adjust(&mut self) {

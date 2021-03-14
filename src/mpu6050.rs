@@ -16,8 +16,8 @@ static Y_GYRO_OFFSET: i32 = 153;
 static X_ACC_OFFSET: i32 = -507;
 static Z_ACC_OFFSET: i32 = -1520;
 
-pub static UNIT_TIME: u32 = 50;//ms
-static UT_S: f32 = 0.05;
+pub static UNIT_TIME: u32 = 1;//ms
+static UT_S: f32 = 0.001;
 
 pub struct MPU6050<'a> {
     i2c: BlockingI2c<
@@ -101,14 +101,14 @@ impl<'a> MPU6050<'a> {
     pub fn read(&mut self, addr: u8) -> u8 {
         let mut buffer: [u8;1] = [0x0];
         self.i2c.write_read(
-            Regs::SLAVE_ADDR.addr(),
+            0x68,
             &[addr],
             &mut buffer
         ).ok();
         buffer[0]
     }
 
-    pub fn get_data(&mut self, addr: u8) -> i32 {
+    fn get_data(&mut self, addr: u8) -> i32 {
         let data_h = self.read(addr);
         let data_l = self.read(addr + 1);
 
@@ -119,7 +119,7 @@ impl<'a> MPU6050<'a> {
     //     self.get_data(Regs::TEMP_OUT_H.addr()) / 340 + 36
     // }
 
-    pub fn get_accel_x(&mut self) -> i32 {
+    fn get_accel_x(&mut self) -> i32 {
         self.get_data(Regs::ACC_REGX_H.addr()) + X_ACC_OFFSET// as f32  / 16384 as f32
     }
 
@@ -127,7 +127,7 @@ impl<'a> MPU6050<'a> {
     //     self.get_data(Regs::ACC_REGY_H.addr()) + Y_ACC_OFFSET// as f32  / 16384 as f32
     // }
 
-    pub fn get_accel_z(&mut self) -> i32 {
+    fn get_accel_z(&mut self) -> i32 {
         self.get_data(Regs::ACC_REGZ_H.addr()) + Z_ACC_OFFSET// as f32  / 16384 as f32
     }
 
@@ -135,7 +135,7 @@ impl<'a> MPU6050<'a> {
     //     self.get_data(Regs::GYRO_REGX_H.addr()) + X_GYRO_OFFSET
     // }
 
-    pub fn get_gyro_y(&mut self) -> f32 {
+    fn get_gyro_y(&mut self) -> f32 {
         let gyro_i32 = self.get_data(Regs::GYRO_REGY_H.addr()) + Y_GYRO_OFFSET;
         (gyro_i32 as f32 / 65536.0) * 500.0
     }

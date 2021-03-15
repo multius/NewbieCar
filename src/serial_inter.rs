@@ -58,12 +58,11 @@ impl<'a> PC<'a> {
     pub fn send_all_of_mpu6050(&mut self) {
         write!(
             self.tx,
-            "\nACCEL_X: {}   ACCEL_Z: {}\nGYRO_Y: {}\nangle: {}\ngyro: {}\n",
+            "\nACCEL_X: {}   ACCEL_Z: {}\nGYRO_Y: {}\nangle: {}\n",
             self.data.acc_x,
             self.data.acc_z,
             self.data.gyro_y,
             self.data.angle,
-            self.data.gyro,
         ).ok();
     }
 

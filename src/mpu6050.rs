@@ -12,9 +12,9 @@ use embedded_hal::digital::v2::OutputPin;
 
 type LEDPIN = gpiob::PB5<Output<PushPull>>;
 
-static Y_GYRO_OFFSET: i32 = 153;
-static X_ACC_OFFSET: i32 = -507;
-static Z_ACC_OFFSET: i32 = -1520;
+static Y_GYRO_OFFSET: i32 = 94;
+static X_ACC_OFFSET: i32 = -1580;
+static Z_ACC_OFFSET: i32 = -1045;
 
 pub static UNIT_TIME: u32 = 1;//ms
 static UT_S: f32 = 0.001;
@@ -33,7 +33,6 @@ pub struct Data {
     pub acc_x: i32,
     pub acc_z: i32,
     pub gyro_y: f32,
-    pub gyro: f32,
     pub angle: f32,
 }
 
@@ -44,7 +43,6 @@ impl Data {
             acc_x: 0,
             acc_z: 0,
             gyro_y: 0.0,
-            gyro: 0.0,
             angle: 0.0,
         }
     }
@@ -167,14 +165,12 @@ impl<'a> MPU6050<'a> {
         let acc_z = self.get_accel_z();
         let gyro_y = self.get_gyro_y();
         let angle =  self.cal_angle(acc_x, acc_z, gyro_y);
-        let gyro = self.cal_gyro(angle, gyro_y);
-
+        // let gyro = self.cal_gyro(angle, gyro_y);
         let data = Data {
             acc_x,
             acc_z,
             gyro_y,
             angle,
-            gyro,
         };
         self.led.set_high().ok();
 

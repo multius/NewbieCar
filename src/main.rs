@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-use motor::Motors;
 use panic_halt as _;
 // use nb::block;
 
@@ -71,6 +70,11 @@ unsafe fn TIM4() {
     static mut TIM4: Option<CountDownTimer<TIM4>> = None;
     let tim4 = get_from_global!(TIM4, G_TIM4);
 
+    static mut PC: Option<serial_inter::PC> = None;
+    let pc = get_from_global!(PC, G_PC);
+
+    pc.send_all_of_mpu6050();
+
     tim4.wait().ok();
 }
 
@@ -84,10 +88,10 @@ fn main() -> ! {
         get_from_global!(HC05, G_HC05)
     };
 
-    static mut PC: Option<serial_inter::PC> = None;
-    let pc = unsafe {
-        get_from_global!(PC, G_PC)
-    };
+    // static mut PC: Option<serial_inter::PC> = None;
+    // let pc = unsafe {
+    //     get_from_global!(PC, G_PC)
+    // };
 
     let state = unsafe {
         get_mut_ptr!(G_STATE)
@@ -97,7 +101,7 @@ fn main() -> ! {
     loop {
 
         let flag = hc05.waiting_data();
-        pc.send_char(flag);
+        // pc.send_char(flag);
         
         match flag {
             b'G' => { *state = motion_control::StateType::Forward }
@@ -151,7 +155,7 @@ fn init() {
     let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
         .start_count_down(mpu6050::UNIT_TIME.ms());
     let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
-        .start_count_down(1000.ms());
+        .start_count_down(500.ms());
 
 
     //------------------------------------全局变量初始化
@@ -213,8 +217,8 @@ fn init() {
         tim3.listen(Event::Update);
         tim4.listen(Event::Update);
 
-        cp.NVIC.set_priority(Interrupt::TIM3, 0x60);
-        cp.NVIC.set_priority(Interrupt::TIM4, 0x10);
+        cp.NVIC.set_priority(Interrupt::TIM3, 0x10);
+        cp.NVIC.set_priority(Interrupt::TIM4, 0x60);
 
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);

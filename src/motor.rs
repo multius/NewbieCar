@@ -33,8 +33,8 @@ impl Motors {
         pwm.set_period(1.hz());
         pwm.set_duty(Channel::C1, pwm.get_max_duty()/100);
         pwm.set_duty(Channel::C2, pwm.get_max_duty()/100);
-        // pwm.enable(Channel::C1);
-        // pwm.enable(Channel::C2);
+        pwm.enable(Channel::C1);
+        pwm.enable(Channel::C2);
 
         Motors {
             pwm,
@@ -72,15 +72,10 @@ impl Motors {
         let speed = speed.abs() as u32;
 
         if speed == 0 {
-            self.pwm.disable(Channel::C1);
-            self.pwm.disable(Channel::C2)
+            self.pwm.set_period(1.hz())
         } else if speed >= MAX_SPEED {
-            self.pwm.enable(Channel::C1);
-            self.pwm.enable(Channel::C2);
             self.pwm.set_period(MAX_SPEED.hz())
         } else {
-            self.pwm.enable(Channel::C1);
-            self.pwm.enable(Channel::C2);
             self.pwm.set_period(speed.hz())
         }
     }

@@ -1,30 +1,33 @@
-use crate::mpu6050;
+use crate::{hc05, mpu6050};
 use crate::motor;
 
 
-static KP: f32 = 210.0;
-// static KI: f32 = 0.0;//1.30;
-static KD: f32 = 0.0;
-static ANGLE_OFFSET: f32 = 0.0;
+pub static KP: f32 = 700.0;
+pub static KI: f32 = 0.0;
+pub static KD: f32 = 50.0;
+pub static ANGLE_OFFSET: f32 = 2.0;
 
 
 pub struct MotionCon<'a> {
     data: &'a mpu6050::Data,
     state: &'a StateType,
-    motors: motor::Motors
+    motors: motor::Motors,
+    pars: &'a hc05::Pars
 }
 
 impl<'a> MotionCon<'a> {
     pub fn init(
         motors: motor::Motors,
         data: &'a mpu6050::Data,
-        state: &'a StateType
+        state: &'a StateType,
+        pars: &'a hc05::Pars
     ) -> Self {
 
         MotionCon {
             data,
             motors,
-            state
+            state,
+            pars
         }
     }
 
@@ -39,11 +42,11 @@ impl<'a> MotionCon<'a> {
     }
 
     fn balance_adjust(&mut self) {
-        let angle = self.data.angle + ANGLE_OFFSET;
+        let angle = self.data.angle + self.pars.angle_offset;
         let gyro = self.data.gyro_y;
-        // let angle_i = self.data.angle_i;
+        let angle_i = self.data.angle_i;
 
-        let speed = (KP * angle) as i32 + (KD * gyro) as i32;
+        let speed = ((self.pars.kp * angle) + (self.pars.ki * angle_i) - (self.pars.kd * gyro)) as i32;
 
         self.motors.set_speed(speed)
     }

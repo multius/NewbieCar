@@ -34,6 +34,7 @@ pub struct Data {
     pub acc_z: i32,
     pub gyro_y: f32,
     pub angle: f32,
+    pub angle_i: f32
 }
 
 
@@ -44,6 +45,7 @@ impl Data {
             acc_z: 0,
             gyro_y: 0.0,
             angle: 0.0,
+            angle_i: 0.0
         }
     }
 }
@@ -149,13 +151,7 @@ impl<'a> MPU6050<'a> {
         ) * (180.0 / 3.1415926);
         let gyro_m = -gyro_y;
 
-        0.10 * angle_m + 0.90 * (self.data.angle + gyro_m * UT_S)
-    }
-
-    pub fn cal_gyro(&self, angle: f32, gyro_y: f32) -> f32{
-        let angle_d = self.data.angle;
-
-        ((angle - angle_d) / UT_S) * 0.9 + gyro_y * -0.1
+        0.02 * angle_m + 0.98 * (self.data.angle + gyro_m * UT_S)
     }
 
     pub fn refresh(&mut self) {
@@ -165,12 +161,13 @@ impl<'a> MPU6050<'a> {
         let acc_z = self.get_accel_z();
         let gyro_y = self.get_gyro_y();
         let angle =  self.cal_angle(acc_x, acc_z, gyro_y);
-        // let gyro = self.cal_gyro(angle, gyro_y);
+        let angle_i = self.data.angle_i + angle;
         let data = Data {
             acc_x,
             acc_z,
             gyro_y,
             angle,
+            angle_i
         };
         self.led.set_high().ok();
 

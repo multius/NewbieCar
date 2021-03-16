@@ -8,7 +8,6 @@ use stm32f1xx_hal::{rcc, rcc::APB2};
 use stm32f1xx_hal::pac::USART1;
 use stm32f1xx_hal::afio::MAPR;
 use stm32f1xx_hal::gpio::gpioa::{PA9, PA10};
-use stm32f1xx_hal::gpio::gpiob;
 use stm32f1xx_hal::gpio::{Alternate, PushPull, Input, Floating, Output};
 
 use embedded_hal::digital::v2::OutputPin;

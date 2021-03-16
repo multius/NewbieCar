@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use embedded_hal::digital::v2::OutputPin;
 use panic_halt as _;
 // use nb::block;
 
@@ -20,6 +21,7 @@ use stm32f1xx_hal::delay::Delay;
 //-------------------------引入核心库（core）
 use core::cell::RefCell;
 use core::mem::MaybeUninit;
+use core::fmt::Write as write;
 
 //-------------------------引入子模块
 mod hc05;
@@ -35,7 +37,7 @@ use motion_control::MotionCon;
 
 //------------------------------------全局变量
 static G_TIM3: Mutex<RefCell<Option<CountDownTimer<TIM3>>>> = Mutex::new(RefCell::new(None));
-static G_TIM4: Mutex<RefCell<Option<CountDownTimer<TIM4>>>> = Mutex::new(RefCell::new(None));
+// static G_TIM4: Mutex<RefCell<Option<CountDownTimer<TIM4>>>> = Mutex::new(RefCell::new(None));
 
 static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell::new(None));
 static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
@@ -45,6 +47,9 @@ static mut G_STATE: MaybeUninit<motion_control::StateType> = MaybeUninit::uninit
 
 static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
 static G_HC05: Mutex<RefCell<Option<hc05::HC05>>> = Mutex::new(RefCell::new(None));
+
+static mut G_PARS: MaybeUninit<hc05::Pars> = MaybeUninit::uninit();
+
 
 //----------------------------------------定时器中断函数
 #[interrupt]
@@ -64,19 +69,19 @@ unsafe fn TIM3() {
     tim3.wait().ok();
 }
 
-#[interrupt]
-#[allow(non_snake_case)]
-unsafe fn TIM4() {
-    static mut TIM4: Option<CountDownTimer<TIM4>> = None;
-    let tim4 = get_from_global!(TIM4, G_TIM4);
+// #[interrupt]
+// #[allow(non_snake_case)]
+// unsafe fn TIM4() {
+//     static mut TIM4: Option<CountDownTimer<TIM4>> = None;
+//     let tim4 = get_from_global!(TIM4, G_TIM4);
 
-    static mut PC: Option<serial_inter::PC> = None;
-    let pc = get_from_global!(PC, G_PC);
+//     // static mut PC: Option<serial_inter::PC> = None;
+//     // let pc = get_from_global!(PC, G_PC);
 
-    pc.send_all_of_mpu6050();
+//     // pc.send_all_of_mpu6050();
 
-    tim4.wait().ok();
-}
+//     tim4.wait().ok();
+// }
 
 
 #[entry]
@@ -93,22 +98,47 @@ fn main() -> ! {
     //     get_from_global!(PC, G_PC)
     // };
 
-    let state = unsafe {
-        get_mut_ptr!(G_STATE)
-    };
+    let state = unsafe { get_mut_ptr!(G_STATE) };
+    
+    hc05.led.set_high().ok();
 
 
     loop {
 
         let flag = hc05.waiting_data();
         // pc.send_char(flag);
-        
+
         match flag {
             b'G' => { *state = motion_control::StateType::Forward }
             b'H' => { *state = motion_control::StateType::TurnLeft }
             b'I' => { *state = motion_control::StateType::Balance }
             b'J' => { *state = motion_control::StateType::TurnRight }
             b'K' => { *state = motion_control::StateType::Backward }
+
+            b'A' => {
+                hc05.pars.angle_offset += 0.2;
+                write!(hc05.tx, "angle_offset = {}", hc05.pars.angle_offset).ok();
+            }
+            b'B' => {
+                hc05.pars.kp += 10.0;
+                write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
+            }
+            b'C' => {
+                hc05.pars.kd += 1.0;
+                write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
+            }
+            b'D' => {
+                hc05.pars.angle_offset -= 0.2;
+                write!(hc05.tx, "angle_offset = {}", hc05.pars.angle_offset).ok();
+            }
+            b'E' => {
+                hc05.pars.kp -= 10.0;
+                write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
+            }
+            b'F' => {
+                hc05.pars.kd -= 1.0;
+                write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
+            }
             _ => {}
         }
     }
@@ -154,14 +184,15 @@ fn init() {
 
     let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
         .start_count_down(mpu6050::UNIT_TIME.ms());
-    let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
-        .start_count_down(500.ms());
+    // let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
+    //     .start_count_down(500.ms());
 
 
     //------------------------------------全局变量初始化
     unsafe {
         *get_mut_ptr!(G_DATA) = mpu6050::Data::new();
         *get_mut_ptr!(G_STATE) = motion_control::StateType::new();
+        *get_mut_ptr!(G_PARS) = hc05::Pars::new();
     }
 
 
@@ -197,37 +228,38 @@ fn init() {
     let motion_con = MotionCon::init(
         motors,
         unsafe { get_ptr!(G_DATA) },
-        unsafe { get_ptr!(G_STATE) }
+        unsafe { get_ptr!(G_STATE) },
+        unsafe { get_ptr!(G_PARS)}
     );
 
     let hc05 = hc05::HC05::init(
         dp.USART2,
         gpioa.pa2.into_alternate_push_pull(&mut gpioa.crl),
         gpioa.pa3,
-        gpioa.pa6,
-        gpioa.pa7.into_push_pull_output(&mut gpioa.crl),
         &mut afio.mapr,
         clocks,
         &mut rcc.apb1,
+        gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
+        unsafe { get_mut_ptr!(G_PARS) }
     );
 
 
     //----------------------------------------定时器启用
     unsafe {
         tim3.listen(Event::Update);
-        tim4.listen(Event::Update);
+        // tim4.listen(Event::Update);
 
         cp.NVIC.set_priority(Interrupt::TIM3, 0x10);
-        cp.NVIC.set_priority(Interrupt::TIM4, 0x60);
+        // cp.NVIC.set_priority(Interrupt::TIM4, 0x60);
 
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
-        cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
+        // cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
     }
 
 
     //-----------------------------------功能模块分发
     send_to_global!(tim3, &G_TIM3);
-    send_to_global!(tim4, &G_TIM4);
+    // send_to_global!(tim4, &G_TIM4);
 
     send_to_global!(mpu6050, &G_MPU6050);
     send_to_global!(pc, &G_PC);

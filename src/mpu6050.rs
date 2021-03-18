@@ -17,7 +17,7 @@ static X_ACC_OFFSET: i32 = -1580;
 static Z_ACC_OFFSET: i32 = -1045;
 
 pub static UNIT_TIME: u32 = 1;//ms
-static UT_S: f32 = 0.001;
+static UT_S: f32 = (UNIT_TIME / 1000) as f32;
 
 pub struct MPU6050<'a> {
     i2c: BlockingI2c<

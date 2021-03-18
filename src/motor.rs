@@ -9,6 +9,7 @@ use stm32f1xx_hal::gpio::{Alternate, PushPull, Output};
 use embedded_hal::digital::v2::OutputPin;
 
 static MAX_SPEED: u32 = 9000;
+static MIN_SPEED: u32 = 5;
 static MAX_ACC: i32 = 100;
 
 
@@ -71,8 +72,8 @@ impl Motors {
         self.speed = speed;
         let speed = speed.abs() as u32;
 
-        if speed == 0 {
-            self.pwm.set_period(1.hz())
+        if speed < MIN_SPEED {
+            self.pwm.set_period(MIN_SPEED.hz())
         } else if speed >= MAX_SPEED {
             self.pwm.set_period(MAX_SPEED.hz())
         } else {

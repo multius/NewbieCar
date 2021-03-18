@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use embedded_hal::digital::v2::OutputPin;
+// use embedded_hal::digital::v2::OutputPin;
 use panic_halt as _;
 // use nb::block;
 
@@ -13,7 +13,7 @@ use cortex_m_rt::entry;
 use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::pac::{interrupt, Interrupt};
 use stm32f1xx_hal::timer::{Event, Timer, CountDownTimer};
-use stm32f1xx_hal::{pac, pac::{TIM3, TIM4}, timer::Tim2NoRemap};
+use stm32f1xx_hal::{pac, pac::TIM3, timer::Tim2NoRemap};
 use stm32f1xx_hal::delay::Delay;
 
 // use embedded_hal::digital::v2::OutputPin;
@@ -46,7 +46,6 @@ static G_MOTIONCON: Mutex<RefCell<Option<motion_control::MotionCon>>> = Mutex::n
 static mut G_STATE: MaybeUninit<motion_control::StateType> = MaybeUninit::uninit();
 
 static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
-static G_HC05: Mutex<RefCell<Option<hc05::HC05>>> = Mutex::new(RefCell::new(None));
 
 static mut G_PARS: MaybeUninit<hc05::Pars> = MaybeUninit::uninit();
 
@@ -63,48 +62,25 @@ unsafe fn TIM3() {
     let mpu6050 = get_from_global!(MPU6050, G_MPU6050);
     let motion_con = get_from_global!(MOTIONCON, G_MOTIONCON);
 
+
     mpu6050.refresh();
     motion_con.adjust_motion();
 
     tim3.wait().ok();
 }
 
-// #[interrupt]
-// #[allow(non_snake_case)]
-// unsafe fn TIM4() {
-//     static mut TIM4: Option<CountDownTimer<TIM4>> = None;
-//     let tim4 = get_from_global!(TIM4, G_TIM4);
-
-//     // static mut PC: Option<serial_inter::PC> = None;
-//     // let pc = get_from_global!(PC, G_PC);
-
-//     // pc.send_all_of_mpu6050();
-
-//     tim4.wait().ok();
-// }
-
-
 #[entry]
 fn main() -> ! {
-    init();
+    let mut hc05 = init();
 
-    static mut HC05: Option<hc05::HC05> = None;
-    let hc05 = unsafe {
-        get_from_global!(HC05, G_HC05)
-    };
-
-    // static mut PC: Option<serial_inter::PC> = None;
-    // let pc = unsafe {
-    //     get_from_global!(PC, G_PC)
-    // };
+    // // static mut PC: Option<serial_inter::PC> = None;
+    // // let pc = unsafe {
+    // //     get_from_global!(PC, G_PC)
+    // // };
 
     let state = unsafe { get_mut_ptr!(G_STATE) };
     
-    hc05.led.set_high().ok();
-
-
     loop {
-
         let flag = hc05.waiting_data();
         // pc.send_char(flag);
 
@@ -116,7 +92,7 @@ fn main() -> ! {
             b'K' => { *state = motion_control::StateType::Backward }
 
             b'A' => {
-                hc05.pars.angle_offset += 0.2;
+                hc05.pars.angle_offset += 0.1;
                 write!(hc05.tx, "angle_offset = {}", hc05.pars.angle_offset).ok();
             }
             b'B' => {
@@ -128,7 +104,7 @@ fn main() -> ! {
                 write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
             }
             b'D' => {
-                hc05.pars.angle_offset -= 0.2;
+                hc05.pars.angle_offset -= 0.1;
                 write!(hc05.tx, "angle_offset = {}", hc05.pars.angle_offset).ok();
             }
             b'E' => {
@@ -146,7 +122,7 @@ fn main() -> ! {
 
 
 //-------------------------------初始化设置
-fn init() {
+fn init() -> hc05::HC05<'static> {
     let mut cp = cortex_m::Peripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
 
@@ -184,8 +160,6 @@ fn init() {
 
     let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
         .start_count_down(mpu6050::UNIT_TIME.ms());
-    // let mut tim4 = Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1)
-    //     .start_count_down(500.ms());
 
 
     //------------------------------------全局变量初始化
@@ -239,30 +213,27 @@ fn init() {
         &mut afio.mapr,
         clocks,
         &mut rcc.apb1,
-        gpiob.pb0.into_push_pull_output(&mut gpiob.crl),
-        unsafe { get_mut_ptr!(G_PARS) }
+        unsafe { get_mut_ptr!(G_PARS) },
+        unsafe { get_ptr!(G_DATA) }
     );
 
 
     //----------------------------------------定时器启用
     unsafe {
         tim3.listen(Event::Update);
-        // tim4.listen(Event::Update);
 
         cp.NVIC.set_priority(Interrupt::TIM3, 0x10);
-        // cp.NVIC.set_priority(Interrupt::TIM4, 0x60);
 
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
-        // cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);
     }
 
 
     //-----------------------------------功能模块分发
     send_to_global!(tim3, &G_TIM3);
-    // send_to_global!(tim4, &G_TIM4);
 
     send_to_global!(mpu6050, &G_MPU6050);
     send_to_global!(pc, &G_PC);
     send_to_global!(motion_con, &G_MOTIONCON);
-    send_to_global!(hc05, &G_HC05);
+
+    hc05
 }

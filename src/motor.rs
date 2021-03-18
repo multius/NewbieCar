@@ -9,7 +9,7 @@ use stm32f1xx_hal::gpio::{Alternate, PushPull, Output};
 use embedded_hal::digital::v2::OutputPin;
 
 static MAX_SPEED: u32 = 9000;
-static MIN_SPEED: u32 = 5;
+static MIN_SPEED: u32 = 15;
 static MAX_ACC: i32 = 100;
 
 

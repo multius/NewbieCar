@@ -10,11 +10,16 @@ use libm::atan2f;
 
 use embedded_hal::digital::v2::OutputPin;
 
+use crate::hc05;
+
 type LEDPIN = gpiob::PB5<Output<PushPull>>;
 
 static Y_GYRO_OFFSET: i32 = 94;
 static X_ACC_OFFSET: i32 = -1580;
 static Z_ACC_OFFSET: i32 = -1045;
+
+
+pub static ANGLE_OFFSET: f32 = 0.032;
 
 pub static UNIT_TIME: u32 = 1;//ms
 static UT_S: f32 = (UNIT_TIME / 1000) as f32;
@@ -25,7 +30,8 @@ pub struct MPU6050<'a> {
         (PB6<Alternate<OpenDrain>>,PB7<Alternate<OpenDrain>>)
     >,
     led: LEDPIN,
-    data: &'a mut Data
+    data: &'a mut Data,
+    pars: &'a hc05::Pars
 }
 
 #[derive(Clone, Copy)]
@@ -60,7 +66,8 @@ impl<'a> MPU6050<'a> {
         pb6: PB6<Alternate<OpenDrain>>,
         pb7: PB7<Alternate<OpenDrain>>,
         led: LEDPIN,
-        data: &'a mut Data
+        data: &'a mut Data,
+        pars: &'a hc05::Pars
     ) -> Self {
         let i2c = BlockingI2c::i2c1(
             i2c,
@@ -78,7 +85,8 @@ impl<'a> MPU6050<'a> {
         let mut mpu6050 = MPU6050 {
             i2c,
             led,
-            data
+            data,
+            pars
         };
 
         mpu6050.write(Regs::POWER_MGMT_1.addr(), 0x00);
@@ -151,7 +159,7 @@ impl<'a> MPU6050<'a> {
         ) * (180.0 / 3.1415926);
         let gyro_m = -gyro_y;
 
-        0.02 * angle_m + 0.98 * (self.data.angle + gyro_m * UT_S)
+        0.02 * angle_m + 0.98 * (self.data.angle + gyro_m * UT_S) + self.pars.angle_offset
     }
 
     pub fn refresh(&mut self) {

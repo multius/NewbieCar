@@ -27,17 +27,16 @@ use core::fmt::Write as write;
 mod hc05;
 mod macro_lib;
 mod mpu6050;
-mod serial_inter;
+// mod serial_inter;
 mod motion_control;
 mod motor;
 
 use mpu6050::MPU6050;
-use serial_inter::PC;
+// use serial_inter::PC;
 use motion_control::MotionCon;
 
 //------------------------------------全局变量
 static G_TIM3: Mutex<RefCell<Option<CountDownTimer<TIM3>>>> = Mutex::new(RefCell::new(None));
-// static G_TIM4: Mutex<RefCell<Option<CountDownTimer<TIM4>>>> = Mutex::new(RefCell::new(None));
 
 static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell::new(None));
 static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
@@ -45,7 +44,7 @@ static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
 static G_MOTIONCON: Mutex<RefCell<Option<motion_control::MotionCon>>> = Mutex::new(RefCell::new(None));
 static mut G_STATE: MaybeUninit<motion_control::StateType> = MaybeUninit::uninit();
 
-static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
+// static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
 
 static mut G_PARS: MaybeUninit<hc05::Pars> = MaybeUninit::uninit();
 
@@ -86,34 +85,41 @@ fn main() -> ! {
 
         match flag {
             b'G' => { *state = motion_control::StateType::Forward }
-            b'H' => { *state = motion_control::StateType::TurnLeft }
             b'I' => { *state = motion_control::StateType::Balance }
-            b'J' => { *state = motion_control::StateType::TurnRight }
             b'K' => { *state = motion_control::StateType::Backward }
 
             b'A' => {
-                hc05.pars.angle_offset += 0.1;
-                write!(hc05.tx, "angle_offset = {}", hc05.pars.angle_offset).ok();
-            }
-            b'B' => {
                 hc05.pars.kp += 10.0;
                 write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
+            }
+            b'B' => {
+                hc05.pars.ki += 1.0;
+                write!(hc05.tx, "ki = {}", hc05.pars.ki).ok();
             }
             b'C' => {
                 hc05.pars.kd += 1.0;
                 write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
             }
             b'D' => {
-                hc05.pars.angle_offset -= 0.1;
-                write!(hc05.tx, "angle_offset = {}", hc05.pars.angle_offset).ok();
-            }
-            b'E' => {
                 hc05.pars.kp -= 10.0;
                 write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
+            }
+            b'E' => {
+                hc05.pars.ki -= 1.0;
+                write!(hc05.tx, "ki = {}", hc05.pars.ki).ok();
             }
             b'F' => {
                 hc05.pars.kd -= 1.0;
                 write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
+            }
+
+            b'H' => {
+                hc05.pars.angle_offset += 0.001;
+                write!(hc05.tx, "angle offset = {}", hc05.pars.angle_offset).ok();
+            }
+            b'J' => {
+                hc05.pars.angle_offset -= 0.001;
+                write!(hc05.tx, "angle offset = {}", hc05.pars.angle_offset).ok();
             }
             _ => {}
         }
@@ -123,7 +129,7 @@ fn main() -> ! {
 
 //-------------------------------初始化设置
 fn init() -> hc05::HC05<'static> {
-    let mut cp = cortex_m::Peripherals::take().unwrap();
+    let cp = cortex_m::Peripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
 
     let mut flash = dp.FLASH.constrain();
@@ -179,17 +185,18 @@ fn init() -> hc05::HC05<'static> {
         gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl),
         gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl),
         gpiob.pb5.into_push_pull_output(&mut gpiob.crl),
-        unsafe { get_mut_ptr!(G_DATA) }
+        unsafe { get_mut_ptr!(G_DATA) },
+        unsafe { get_ptr!(G_PARS) }
     );
-    let pc = PC::init(
-        dp.USART1,
-        gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh),
-        gpioa.pa10,
-        &mut afio.mapr,
-        clocks,
-        &mut rcc.apb2,
-        unsafe { get_ptr!(G_DATA) },
-    );
+    // let pc = PC::init(
+    //     dp.USART1,
+    //     gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh),
+    //     gpioa.pa10,
+    //     &mut afio.mapr,
+    //     clocks,
+    //     &mut rcc.apb2,
+    //     unsafe { get_ptr!(G_DATA) },
+    // );
 
     let motors = motor::Motors::init(
         motor_pwm,
@@ -221,9 +228,6 @@ fn init() -> hc05::HC05<'static> {
     //----------------------------------------定时器启用
     unsafe {
         tim3.listen(Event::Update);
-
-        cp.NVIC.set_priority(Interrupt::TIM3, 0x10);
-
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
     }
 
@@ -232,7 +236,7 @@ fn init() -> hc05::HC05<'static> {
     send_to_global!(tim3, &G_TIM3);
 
     send_to_global!(mpu6050, &G_MPU6050);
-    send_to_global!(pc, &G_PC);
+    // send_to_global!(pc, &G_PC);
     send_to_global!(motion_con, &G_MOTIONCON);
 
     hc05

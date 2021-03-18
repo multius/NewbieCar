@@ -23,14 +23,16 @@ use crate::mpu6050;
 pub struct Pars {
     pub angle_offset: f32,
     pub kp: f32,
+    pub ki: f32,
     pub kd: f32
 }
 
 impl Pars {
     pub fn new() -> Pars {
         Pars {
-            angle_offset: motion_control::ANGLE_OFFSET,
+            angle_offset: mpu6050::ANGLE_OFFSET,
             kp: motion_control::KP,
+            ki: motion_control::KI,
             kd: motion_control::KD
         }
     }
@@ -76,36 +78,36 @@ impl<'a> HC05<'a> {
         }
     }
 
-    pub fn send_packets(&mut self) {
+    // pub fn send_packets(&mut self) {
 
-        let data_buf = f32_to_u8(self.data.angle);
-        let mut check: u32 = 0;
+    //     let data_buf = f32_to_u8(self.data.angle);
+    //     let mut check: u32 = 0;
 
-        for i in 0..4 {
-            self.tx.write(data_buf[i]).ok();
-            check += data_buf[i] as u32;
-        }
+    //     for i in 0..4 {
+    //         self.tx.write(data_buf[i]).ok();
+    //         check += data_buf[i] as u32;
+    //     }
 
-        self.tx.write(get_the_lowest_byte(check)).ok();
+    //     self.tx.write(get_the_lowest_byte(check)).ok();
 
-        self.tx.write(0x5A).ok();
+    //     self.tx.write(0x5A).ok();
 
-        let buffer: [u8; 7] = [
-            0xA5,
-            data_buf[0],
-            data_buf[1],
-            data_buf[2],
-            data_buf[3],
-            get_the_lowest_byte(check),
-            0x5A
-        ];
+    //     let buffer: [u8; 7] = [
+    //         0xA5,
+    //         data_buf[0],
+    //         data_buf[1],
+    //         data_buf[2],
+    //         data_buf[3],
+    //         get_the_lowest_byte(check),
+    //         0x5A
+    //     ];
 
-        let str = unsafe {
-            core::intrinsics::transmute::<&[u8], &str>(&buffer)
-        };
+    //     let str = unsafe {
+    //         core::intrinsics::transmute::<&[u8], &str>(&buffer)
+    //     };
 
-        self.tx.write_str(str).ok();
-    }
+    //     self.tx.write_str(str).ok();
+    // }
 
     pub fn waiting_data(&mut self) -> u8 {
         block!(self.rx.read()).unwrap()
@@ -114,25 +116,25 @@ impl<'a> HC05<'a> {
 
 
 
-fn f32_to_u8(num: f32) -> [u8;4] {
-    let mut u8_buf: [u8; 4] = [0x0; 4];
-    let f32_ptr: *const f32 = &num as *const f32;
-    let u8_ptr: *const u8 = f32_ptr as *const u8;
+// fn f32_to_u8(num: f32) -> [u8;4] {
+//     let mut u8_buf: [u8; 4] = [0x0; 4];
+//     let f32_ptr: *const f32 = &num as *const f32;
+//     let u8_ptr: *const u8 = f32_ptr as *const u8;
 
-    for i in 0..4 {
-        u8_buf[i as usize] = unsafe {
-            *u8_ptr.offset(i) as u8
-        }
-    }
+//     for i in 0..4 {
+//         u8_buf[i as usize] = unsafe {
+//             *u8_ptr.offset(i) as u8
+//         }
+//     }
 
-    u8_buf
-}
+//     u8_buf
+// }
 
-fn get_the_lowest_byte(num: u32) -> u8 {
-    let u32_ptr: *const u32 = &num as *const u32;
-    let u8_ptr: *const u8 = u32_ptr as *const u8;
+// fn get_the_lowest_byte(num: u32) -> u8 {
+//     let u32_ptr: *const u32 = &num as *const u32;
+//     let u8_ptr: *const u8 = u32_ptr as *const u8;
 
-    unsafe {
-        *u8_ptr.offset(0) as u8
-    }
-}
+//     unsafe {
+//         *u8_ptr.offset(0) as u8
+//     }
+// }

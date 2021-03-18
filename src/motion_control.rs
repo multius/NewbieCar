@@ -3,9 +3,8 @@ use crate::motor;
 
 
 pub static KP: f32 = 700.0;
-// pub static KI: f32 = 0.0;
+pub static KI: f32 = 0.0;
 pub static KD: f32 = 50.0;
-pub static ANGLE_OFFSET: f32 = 0.0;
 
 
 pub struct MotionCon<'a> {
@@ -42,11 +41,11 @@ impl<'a> MotionCon<'a> {
     }
 
     fn balance_adjust(&mut self) {
-        let angle = self.data.angle + self.pars.angle_offset;
+        let angle = self.data.angle;
         let gyro = self.data.gyro_y;
-        // let angle_i = self.data.angle_i;
+        let angle_i = self.data.angle_i;
 
-        let speed = ((self.pars.kp * angle) - (self.pars.kd * gyro)) as i32;
+        let speed = ((self.pars.kp * angle) + (self.pars.ki * angle_i) - (self.pars.kd * gyro)) as i32;
 
         self.motors.set_speed(speed)
     }

@@ -38,15 +38,12 @@ use motion_control::MotionCon;
 //------------------------------------全局变量
 static G_TIM3: Mutex<RefCell<Option<CountDownTimer<TIM3>>>> = Mutex::new(RefCell::new(None));
 
-static G_MPU6050: Mutex<RefCell<Option<mpu6050::MPU6050>>> = Mutex::new(RefCell::new(None));
-static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
-
 static G_MOTIONCON: Mutex<RefCell<Option<motion_control::MotionCon>>> = Mutex::new(RefCell::new(None));
-static mut G_STATE: MaybeUninit<motion_control::StateType> = MaybeUninit::uninit();
-
 // static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
 
 static mut G_PARS: MaybeUninit<hc05::Pars> = MaybeUninit::uninit();
+static mut G_STATE: MaybeUninit<motion_control::StateType> = MaybeUninit::uninit();
+static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
 
 
 //----------------------------------------定时器中断函数
@@ -56,13 +53,9 @@ unsafe fn TIM3() {
     static mut TIM3: Option<CountDownTimer<TIM3>> = None;
     let tim3 = get_from_global!(TIM3, G_TIM3);
 
-    static mut MPU6050: Option<mpu6050::MPU6050> = None;
     static mut MOTIONCON: Option<motion_control::MotionCon> = None;
-    let mpu6050 = get_from_global!(MPU6050, G_MPU6050);
     let motion_con = get_from_global!(MOTIONCON, G_MOTIONCON);
 
-
-    mpu6050.refresh();
     motion_con.adjust_motion();
 
     tim3.wait().ok();
@@ -89,7 +82,7 @@ fn main() -> ! {
             b'K' => { *state = motion_control::StateType::Backward }
 
             b'A' => {
-                hc05.pars.kp += 10.0;
+                hc05.pars.kp += 30.0;
                 write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
             }
             b'B' => {
@@ -97,11 +90,11 @@ fn main() -> ! {
                 write!(hc05.tx, "ki = {}", hc05.pars.ki).ok();
             }
             b'C' => {
-                hc05.pars.kd += 1.0;
+                hc05.pars.kd += 5.0;
                 write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
             }
             b'D' => {
-                hc05.pars.kp -= 10.0;
+                hc05.pars.kp -= 30.0;
                 write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
             }
             b'E' => {
@@ -109,7 +102,7 @@ fn main() -> ! {
                 write!(hc05.tx, "ki = {}", hc05.pars.ki).ok();
             }
             b'F' => {
-                hc05.pars.kd -= 1.0;
+                hc05.pars.kd -= 5.0;
                 write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
             }
 
@@ -163,7 +156,6 @@ fn init() -> hc05::HC05<'static> {
         1.hz(),
     );
 
-
     let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
         .start_count_down(mpu6050::UNIT_TIME.ms());
 
@@ -188,6 +180,7 @@ fn init() -> hc05::HC05<'static> {
         unsafe { get_mut_ptr!(G_DATA) },
         unsafe { get_ptr!(G_PARS) }
     );
+
     // let pc = PC::init(
     //     dp.USART1,
     //     gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh),
@@ -210,7 +203,8 @@ fn init() -> hc05::HC05<'static> {
         motors,
         unsafe { get_ptr!(G_DATA) },
         unsafe { get_ptr!(G_STATE) },
-        unsafe { get_ptr!(G_PARS)}
+        unsafe { get_ptr!(G_PARS)},
+        mpu6050
     );
 
     let hc05 = hc05::HC05::init(
@@ -235,7 +229,6 @@ fn init() -> hc05::HC05<'static> {
     //-----------------------------------功能模块分发
     send_to_global!(tim3, &G_TIM3);
 
-    send_to_global!(mpu6050, &G_MPU6050);
     // send_to_global!(pc, &G_PC);
     send_to_global!(motion_con, &G_MOTIONCON);
 

@@ -19,10 +19,10 @@ static X_ACC_OFFSET: i32 = -1580;
 static Z_ACC_OFFSET: i32 = -1045;
 
 
-pub static ANGLE_OFFSET: f32 = 0.032;
+pub static ANGLE_OFFSET: f32 = 0.033;
 
-pub static UNIT_TIME: u32 = 1;//ms
-static UT_S: f32 = (UNIT_TIME / 1000) as f32;
+pub static UNIT_TIME: u32 = 10;//ms
+static UT_S: f32 = (UNIT_TIME / 1000) as f32;//s
 
 pub struct MPU6050<'a> {
     i2c: BlockingI2c<
@@ -162,13 +162,13 @@ impl<'a> MPU6050<'a> {
         0.02 * angle_m + 0.98 * (self.data.angle + gyro_m * UT_S) + self.pars.angle_offset
     }
 
-    pub fn refresh(&mut self) {
+    pub fn refresh(&mut self, target_angle: f32) {
         self.led.set_low().ok();
 
         let acc_x = self.get_accel_x();
         let acc_z = self.get_accel_z();
         let gyro_y = self.get_gyro_y();
-        let angle =  self.cal_angle(acc_x, acc_z, gyro_y);
+        let angle =  self.cal_angle(acc_x, acc_z, gyro_y) - target_angle;
         let angle_i = self.data.angle_i + angle;
         let data = Data {
             acc_x,

@@ -1,18 +1,21 @@
-use core::fmt::Write;
+use core::{fmt::Write, panic};
 
 // use cortex_m::{itm::write_fmt, peripheral::mpu};
 use nb::block;
 
-use stm32f1xx_hal::prelude::*;
+use stm32f1xx_hal::{dma::Transfer, prelude::*};
 use stm32f1xx_hal::serial::*;
 use stm32f1xx_hal::{rcc, rcc::APB1};
 use stm32f1xx_hal::pac::USART2;
 use stm32f1xx_hal::afio::MAPR;
+use stm32f1xx_hal::dma::dma1::Channels;
+use stm32f1xx_hal::dma;
 
 use stm32f1xx_hal::gpio::gpioa::{PA2, PA3};
 use stm32f1xx_hal::gpio::{Alternate, PushPull, Input, Floating};
 
 // use embedded_hal::digital::v2::{OutputPin, InputPin};
+use cortex_m::singleton;
 
 pub static BAUDRATE: u32 = 19200;
 
@@ -38,12 +41,11 @@ impl Pars {
     }
 }
 
-
 pub struct HC05<'a> {
     pub tx: Tx<USART2>,
-    rx: Rx<USART2>,
-    pub pars: &'a mut Pars,
-    data: &'a mpu6050::Data
+    pub rx_circbuf: dma::CircBuffer<[u8; 8], RxDma2>,
+    data: &'a mpu6050::Data,
+    pub pars: &'a mut Pars
 }
 
 
@@ -56,6 +58,7 @@ impl<'a> HC05<'a> {
         mapr: &mut MAPR,
         clocks: rcc::Clocks,
         apb: &mut APB1,
+        channels: Channels,
         pars: &'a mut Pars,
         data: &'a mpu6050::Data
     ) -> Self {
@@ -69,72 +72,84 @@ impl<'a> HC05<'a> {
             apb
         );
         let (tx, rx) = serial.split();
-    
+        let rx = rx.with_dma(channels.6);
+
+        let buf= singleton!(: [[u8; 8]; 2] = [[0; 8]; 2]).unwrap();
+        let rx_circbuf = rx.circ_read(buf);
+
         HC05 {
             tx,
-            rx,
-            pars,
-            data
+            rx_circbuf,
+            data,
+            pars
         }
     }
 
-    // pub fn send_packets(&mut self) {
+    pub fn send_packets(&mut self) {
 
-    //     let data_buf = f32_to_u8(self.data.angle);
-    //     let mut check: u32 = 0;
+        let angle_buf = f32_to_u8(self.data.angle);
+        let kp_buf = f32_to_u8(self.pars.kp);
+        let ki_buf = f32_to_u8(self.pars.ki);
+        let kd_buf = f32_to_u8(self.pars.kd);
+        let mut check: u32 = 0;
 
-    //     for i in 0..4 {
-    //         self.tx.write(data_buf[i]).ok();
-    //         check += data_buf[i] as u32;
-    //     }
+        for i in 0..4 {
+            check += angle_buf[i] as u32;
+            check += kp_buf[i] as u32;
+            check += ki_buf[i] as u32;
+            check += kd_buf[i] as u32;
+        }
 
-    //     self.tx.write(get_the_lowest_byte(check)).ok();
+        let buffer: [u8; 19] = [
+            0xA5,
+            angle_buf[0], angle_buf[1], angle_buf[2], angle_buf[3],
+            kp_buf[0], kp_buf[1], kp_buf[2], kp_buf[3],
+            ki_buf[0], ki_buf[1], ki_buf[2], ki_buf[3],
+            kd_buf[0], kd_buf[1], kd_buf[2], kd_buf[3],
+            get_the_lowest_byte(check),
+            0x5A
+        ];
 
-    //     self.tx.write(0x5A).ok();
+        let str = unsafe {
+            core::intrinsics::transmute::<&[u8], &str>(&buffer)
+        };
 
-    //     let buffer: [u8; 7] = [
-    //         0xA5,
-    //         data_buf[0],
-    //         data_buf[1],
-    //         data_buf[2],
-    //         data_buf[3],
-    //         get_the_lowest_byte(check),
-    //         0x5A
-    //     ];
+        self.tx.write_str(str).ok();
+    }
 
-    //     let str = unsafe {
-    //         core::intrinsics::transmute::<&[u8], &str>(&buffer)
-    //     };
-
-    //     self.tx.write_str(str).ok();
+    // pub fn fuck(&mut self) {
+    //     let buf= singleton!(: [u8; 8] = [0; 8]).unwrap();
+    //     self.rx.read(buf);
     // }
+}
 
-    pub fn waiting_data(&mut self) -> u8 {
-        block!(self.rx.read()).unwrap()
+pub fn get_half(result: Result<dma::Half, dma::Error>) -> dma::Half{
+    match result {
+        Ok(h) => h,
+        Err(_) => dma::Half::Second
     }
 }
 
 
+fn f32_to_u8(num: f32) -> [u8;4] {
+    let mut u8_buf: [u8; 4] = [0x0; 4];
+    let f32_ptr: *const f32 = &num as *const f32;
+    let u8_ptr: *const u8 = f32_ptr as *const u8;
 
-// fn f32_to_u8(num: f32) -> [u8;4] {
-//     let mut u8_buf: [u8; 4] = [0x0; 4];
-//     let f32_ptr: *const f32 = &num as *const f32;
-//     let u8_ptr: *const u8 = f32_ptr as *const u8;
+    for i in 0..4 {
+        u8_buf[i as usize] = unsafe {
+            *u8_ptr.offset(i) as u8
+        }
+    }
 
-//     for i in 0..4 {
-//         u8_buf[i as usize] = unsafe {
-//             *u8_ptr.offset(i) as u8
-//         }
-//     }
+    u8_buf
+}
 
-//     u8_buf
-// }
+fn get_the_lowest_byte(num: u32) -> u8 {
+    let u32_ptr: *const u32 = &num as *const u32;
+    let u8_ptr: *const u8 = u32_ptr as *const u8;
 
-// fn get_the_lowest_byte(num: u32) -> u8 {
-//     let u32_ptr: *const u32 = &num as *const u32;
-//     let u8_ptr: *const u8 = u32_ptr as *const u8;
-
-//     unsafe {
-//         *u8_ptr.offset(0) as u8
-//     }
-// }
+    unsafe {
+        *u8_ptr.offset(0) as u8
+    }
+}

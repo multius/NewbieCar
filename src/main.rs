@@ -10,7 +10,7 @@ use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 
 //----------------------------引入hal库
-use stm32f1xx_hal::prelude::*;
+use stm32f1xx_hal::{dma::Half, prelude::*};
 use stm32f1xx_hal::pac::{interrupt, Interrupt};
 use stm32f1xx_hal::timer::{Event, Timer, CountDownTimer};
 use stm32f1xx_hal::{pac, pac::TIM3, timer::Tim2NoRemap};
@@ -56,66 +56,85 @@ unsafe fn TIM3() {
     static mut MOTIONCON: Option<motion_control::MotionCon> = None;
     let motion_con = get_from_global!(MOTIONCON, G_MOTIONCON);
 
+    tim3.wait().ok();
+
     motion_con.adjust_motion();
 
-    tim3.wait().ok();
 }
 
 #[entry]
 fn main() -> ! {
-    let mut hc05 = init();
+    let mut pc = init();
 
     // // static mut PC: Option<serial_inter::PC> = None;
     // // let pc = unsafe {
     // //     get_from_global!(PC, G_PC)
     // // };
 
-    let state = unsafe { get_mut_ptr!(G_STATE) };
-    
+    // let state = unsafe { get_mut_ptr!(G_STATE) };
+
+    let mut last_half = hc05::get_half(pc.rx_circbuf.readable_half());
+
     loop {
-        let flag = hc05.waiting_data();
-        // pc.send_char(flag);
+        // pc.send_packets();
 
-        match flag {
-            b'G' => { *state = motion_control::StateType::Forward }
-            b'I' => { *state = motion_control::StateType::Balance }
-            b'K' => { *state = motion_control::StateType::Backward }
+        while pc.rx_circbuf.readable_half().unwrap() != last_half {
 
-            b'A' => {
-                hc05.pars.kp += 30.0;
-                write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
-            }
-            b'B' => {
-                hc05.pars.ki += 1.0;
-                write!(hc05.tx, "ki = {}", hc05.pars.ki).ok();
-            }
-            b'C' => {
-                hc05.pars.kd += 5.0;
-                write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
-            }
-            b'D' => {
-                hc05.pars.kp -= 30.0;
-                write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
-            }
-            b'E' => {
-                hc05.pars.ki -= 1.0;
-                write!(hc05.tx, "ki = {}", hc05.pars.ki).ok();
-            }
-            b'F' => {
-                hc05.pars.kd -= 5.0;
-                write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
-            }
+            last_half = pc.rx_circbuf.readable_half().unwrap();
 
-            b'H' => {
-                hc05.pars.angle_offset += 0.001;
-                write!(hc05.tx, "angle offset = {}", hc05.pars.angle_offset).ok();
-            }
-            b'J' => {
-                hc05.pars.angle_offset -= 0.001;
-                write!(hc05.tx, "angle offset = {}", hc05.pars.angle_offset).ok();
-            }
-            _ => {}
+            pc.tx.write_str("ok").ok();
+
+            let str = unsafe {
+                core::intrinsics::transmute::<&[u8], &str>(&pc.rx_circbuf.peek(|half, _| *half).unwrap())
+            };
+
+            pc.tx.write_str(str).ok();
+
         }
+        
+        // let flag = hc05_r.waiting_data();
+        
+
+        // match flag {
+        //     b'G' => { *state = motion_control::StateType::Forward }
+        //     b'I' => { *state = motion_control::StateType::Balance }
+        //     b'K' => { *state = motion_control::StateType::Backward }
+
+        //     b'A' => {
+        //         hc05_r.pars.kp += 30.0;
+        //         write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
+        //     }
+        //     b'B' => {
+        //         hc05.pars.ki += 1.0;
+        //         write!(hc05.tx, "ki = {}", hc05.pars.ki).ok();
+        //     }
+        //     b'C' => {
+        //         hc05.pars.kd += 5.0;
+        //         write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
+        //     }
+        //     b'D' => {
+        //         hc05.pars.kp -= 30.0;
+        //         write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
+        //     }
+        //     b'E' => {
+        //         hc05.pars.ki -= 1.0;
+        //         write!(hc05.tx, "ki = {}", hc05.pars.ki).ok();
+        //     }
+        //     b'F' => {
+        //         hc05.pars.kd -= 5.0;
+        //         write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
+        //     }
+
+        //     b'H' => {
+        //         hc05.pars.angle_offset += 0.001;
+        //         write!(hc05.tx, "angle offset = {}", hc05.pars.angle_offset).ok();
+        //     }
+        //     b'J' => {
+        //         hc05.pars.angle_offset -= 0.001;
+        //         write!(hc05.tx, "angle offset = {}", hc05.pars.angle_offset).ok();
+        //     }
+        //     _ => {}
+        // }
     }
 }
 
@@ -128,6 +147,7 @@ fn init() -> hc05::HC05<'static> {
     let mut flash = dp.FLASH.constrain();
     let mut rcc = dp.RCC.constrain();
     let mut afio = dp.AFIO.constrain(&mut rcc.apb2);
+    let channels = dp.DMA1.split(&mut rcc.ahb);
 
     let clocks = rcc
         .cfgr
@@ -203,7 +223,7 @@ fn init() -> hc05::HC05<'static> {
         motors,
         unsafe { get_ptr!(G_DATA) },
         unsafe { get_ptr!(G_STATE) },
-        unsafe { get_ptr!(G_PARS)},
+        unsafe { get_ptr!(G_PARS) },
         mpu6050
     );
 
@@ -214,6 +234,7 @@ fn init() -> hc05::HC05<'static> {
         &mut afio.mapr,
         clocks,
         &mut rcc.apb1,
+        channels,
         unsafe { get_mut_ptr!(G_PARS) },
         unsafe { get_ptr!(G_DATA) }
     );

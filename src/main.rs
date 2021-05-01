@@ -10,7 +10,7 @@ use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 
 //----------------------------引入hal库
-use stm32f1xx_hal::{dma::Half, prelude::*};
+use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::pac::{interrupt, Interrupt};
 use stm32f1xx_hal::timer::{Event, Timer, CountDownTimer};
 use stm32f1xx_hal::{pac, pac::TIM3, timer::Tim2NoRemap};
@@ -21,7 +21,7 @@ use stm32f1xx_hal::delay::Delay;
 //-------------------------引入核心库（core）
 use core::cell::RefCell;
 use core::mem::MaybeUninit;
-use core::fmt::Write as write;
+// use core::fmt::Write as write;
 
 //-------------------------引入子模块
 mod hc05;
@@ -66,75 +66,24 @@ unsafe fn TIM3() {
 fn main() -> ! {
     let mut pc = init();
 
-    // // static mut PC: Option<serial_inter::PC> = None;
-    // // let pc = unsafe {
-    // //     get_from_global!(PC, G_PC)
-    // // };
+    // static mut PC: Option<serial_inter::PC> = None;
+    // let pc = unsafe {
+    //     get_from_global!(PC, G_PC)
+    // };
 
     // let state = unsafe { get_mut_ptr!(G_STATE) };
 
     let mut last_half = hc05::get_half(pc.rx_circbuf.readable_half());
 
     loop {
-        // pc.send_packets();
+        pc.send_packets();
 
-        while pc.rx_circbuf.readable_half().unwrap() != last_half {
+        if pc.rx_circbuf.readable_half().unwrap() != last_half {
 
             last_half = pc.rx_circbuf.readable_half().unwrap();
 
-            pc.tx.write_str("ok").ok();
-
-            let str = unsafe {
-                core::intrinsics::transmute::<&[u8], &str>(&pc.rx_circbuf.peek(|half, _| *half).unwrap())
-            };
-
-            pc.tx.write_str(str).ok();
-
+            pc.packets_analyse();
         }
-        
-        // let flag = hc05_r.waiting_data();
-        
-
-        // match flag {
-        //     b'G' => { *state = motion_control::StateType::Forward }
-        //     b'I' => { *state = motion_control::StateType::Balance }
-        //     b'K' => { *state = motion_control::StateType::Backward }
-
-        //     b'A' => {
-        //         hc05_r.pars.kp += 30.0;
-        //         write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
-        //     }
-        //     b'B' => {
-        //         hc05.pars.ki += 1.0;
-        //         write!(hc05.tx, "ki = {}", hc05.pars.ki).ok();
-        //     }
-        //     b'C' => {
-        //         hc05.pars.kd += 5.0;
-        //         write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
-        //     }
-        //     b'D' => {
-        //         hc05.pars.kp -= 30.0;
-        //         write!(hc05.tx, "kp = {}", hc05.pars.kp).ok();
-        //     }
-        //     b'E' => {
-        //         hc05.pars.ki -= 1.0;
-        //         write!(hc05.tx, "ki = {}", hc05.pars.ki).ok();
-        //     }
-        //     b'F' => {
-        //         hc05.pars.kd -= 5.0;
-        //         write!(hc05.tx, "kd = {}", hc05.pars.kd).ok();
-        //     }
-
-        //     b'H' => {
-        //         hc05.pars.angle_offset += 0.001;
-        //         write!(hc05.tx, "angle offset = {}", hc05.pars.angle_offset).ok();
-        //     }
-        //     b'J' => {
-        //         hc05.pars.angle_offset -= 0.001;
-        //         write!(hc05.tx, "angle offset = {}", hc05.pars.angle_offset).ok();
-        //     }
-        //     _ => {}
-        // }
     }
 }
 

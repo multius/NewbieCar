@@ -124,30 +124,30 @@ impl<'a> HC05<'a> {
 
     pub fn packets_analyse(&mut self) {
         let data = self.rx_circbuf.peek(|half, _| *half).unwrap();
-        data_check(&data).unwrap();
-        
-        if data[1] == 1 {
-            self.pars.angle_offset += 0.001;
-        } else if data[1] == 2 {
-            self.pars.angle_offset -= 0.001;
-        }
-
-        if data[2] == 1 {
-            self.pars.kp += 10.0;
-        } else if data[2] == 2 {
-            self.pars.kp -= 10.0;
-        }
-
-        if data[3] == 1 {
-            self.pars.ki += 1.0;
-        } else if data[3] == 2 {
-            self.pars.ki -= 1.0;
-        }
-
-        if data[4] == 1 {
-            self.pars.kd += 5.0;
-        } else if data[4] == 2 {
-            self.pars.kd -= 5.0;
+        if let Ok(_) = data_check(&data)  {
+            if data[1] == 1 {
+                self.pars.angle_offset += 0.001;
+            } else if data[1] == 2 {
+                self.pars.angle_offset -= 0.001;
+            }
+    
+            if data[2] == 1 {
+                self.pars.kp += 10.0;
+            } else if data[2] == 2 {
+                self.pars.kp -= 10.0;
+            }
+    
+            if data[3] == 1 {
+                self.pars.ki += 1.0;
+            } else if data[3] == 2 {
+                self.pars.ki -= 1.0;
+            }
+    
+            if data[4] == 1 {
+                self.pars.kd += 5.0;
+            } else if data[4] == 2 {
+                self.pars.kd -= 5.0;
+            }
         }
     }
 }

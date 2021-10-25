@@ -183,7 +183,7 @@ fn get_the_lowest_byte(num: u32) -> u8 {
     }
 }
 
-pub fn data_check(data: &[u8; 7]) -> Result<u8,u8> {
+pub fn data_check(data: &[u8;7]) -> Result<u8,u8> {
     if (data[0] != 0xA5) || (data[6] != 0x5A) {
         return Err(1);
     }

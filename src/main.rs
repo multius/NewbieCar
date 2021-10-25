@@ -1,3 +1,4 @@
+
 #![no_std]
 #![no_main]
 
@@ -42,7 +43,7 @@ static G_MOTIONCON: Mutex<RefCell<Option<motion_control::MotionCon>>> = Mutex::n
 // static G_PC: Mutex<RefCell<Option<serial_inter::PC>>> = Mutex::new(RefCell::new(None));
 
 static mut G_PARS: MaybeUninit<hc05::Pars> = MaybeUninit::uninit();
-static mut G_STATE: MaybeUninit<motion_control::StateType> = MaybeUninit::uninit();
+// static mut G_STATE: MaybeUninit<motion_control::StateType> = MaybeUninit::uninit();
 static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
 
 
@@ -58,13 +59,13 @@ unsafe fn TIM3() {
 
     tim3.wait().ok();
 
-    motion_con.adjust_motion();
+    motion_con.adjust_motion(0.0);
 
 }
 
 #[entry]
 fn main() -> ! {
-    let mut pc = init();
+    let mut master = init();
 
     // static mut PC: Option<serial_inter::PC> = None;
     // let pc = unsafe {
@@ -73,16 +74,16 @@ fn main() -> ! {
 
     // let state = unsafe { get_mut_ptr!(G_STATE) };
 
-    let mut last_half = hc05::get_half(pc.rx_circbuf.readable_half());
+    let mut last_half = hc05::get_half(master.rx_circbuf.readable_half());
 
     loop {
-        pc.send_packets();
+        master.send_packets();
 
-        if pc.rx_circbuf.readable_half().unwrap() != last_half {
+        if master.rx_circbuf.readable_half().unwrap() != last_half {
 
-            last_half = pc.rx_circbuf.readable_half().unwrap();
+            last_half = master.rx_circbuf.readable_half().unwrap();
 
-            pc.packets_analyse();
+            master.packets_analyse();
         }
     }
 }
@@ -132,7 +133,7 @@ fn init() -> hc05::HC05<'static> {
     //------------------------------------全局变量初始化
     unsafe {
         *get_mut_ptr!(G_DATA) = mpu6050::Data::new();
-        *get_mut_ptr!(G_STATE) = motion_control::StateType::new();
+        // *get_mut_ptr!(G_STATE) = motion_control::StateType::new();
         *get_mut_ptr!(G_PARS) = hc05::Pars::new();
     }
 
@@ -146,8 +147,8 @@ fn init() -> hc05::HC05<'static> {
         gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl),
         gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl),
         gpiob.pb5.into_push_pull_output(&mut gpiob.crl),
-        unsafe { get_mut_ptr!(G_DATA) },
-        unsafe { get_ptr!(G_PARS) }
+        unsafe { get_mut_ptr!(G_DATA) }, //获取全局DATA的控制权
+        unsafe { get_ptr!(G_PARS) } //获取全局PARS的读取权
     );
 
     // let pc = PC::init(
@@ -171,8 +172,7 @@ fn init() -> hc05::HC05<'static> {
     let motion_con = MotionCon::init(
         motors,
         unsafe { get_ptr!(G_DATA) },
-        unsafe { get_ptr!(G_STATE) },
-        unsafe { get_ptr!(G_PARS) },
+        unsafe { get_ptr!(G_PARS) }, //获取全部全局变量的读取权
         mpu6050
     );
 
@@ -184,8 +184,8 @@ fn init() -> hc05::HC05<'static> {
         clocks,
         &mut rcc.apb1,
         channels,
-        unsafe { get_mut_ptr!(G_PARS) },
-        unsafe { get_ptr!(G_DATA) }
+        unsafe { get_mut_ptr!(G_PARS) },//获取全局PARS的控制权
+        unsafe { get_ptr!(G_DATA) }//获取全局DATA的读取权
     );
 
 

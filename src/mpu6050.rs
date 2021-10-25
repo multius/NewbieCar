@@ -39,8 +39,7 @@ pub struct Data {
     pub acc_x: i32,
     pub acc_z: i32,
     pub gyro_y: f32,
-    pub angle: f32,
-    pub angle_i: f32
+    pub angle: f32,//经过计算的角度
 }
 
 
@@ -51,7 +50,6 @@ impl Data {
             acc_z: 0,
             gyro_y: 0.0,
             angle: 0.0,
-            angle_i: 0.0
         }
     }
 }
@@ -162,20 +160,18 @@ impl<'a> MPU6050<'a> {
         0.02 * angle_m + 0.98 * (self.data.angle + gyro_m * UT_S) + self.pars.angle_offset
     }
 
-    pub fn refresh(&mut self, target_angle: f32) {
+    pub fn refresh(&mut self) {
         self.led.set_low().ok();
 
         let acc_x = self.get_accel_x();
         let acc_z = self.get_accel_z();
         let gyro_y = self.get_gyro_y();
-        let angle =  self.cal_angle(acc_x, acc_z, gyro_y) - target_angle;
-        let angle_i = self.data.angle_i + angle;
+        let angle =  self.cal_angle(acc_x, acc_z, gyro_y);
         let data = Data {
             acc_x,
             acc_z,
             gyro_y,
             angle,
-            angle_i
         };
         self.led.set_high().ok();
 

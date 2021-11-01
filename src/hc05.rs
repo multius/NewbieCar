@@ -25,18 +25,18 @@ use crate::mpu6050;
 
 pub struct Pars {
     pub angle_offset: f32,
-    pub kp: f32,
-    pub ki: f32,
-    pub kd: f32
+    pub v_kp: f32,
+    pub b_kp: f32,
+    pub b_kd: f32
 }
 
 impl Pars {
     pub fn new() -> Pars {
         Pars {
             angle_offset: mpu6050::ANGLE_OFFSET,
-            kp: motion_control::KP,
-            ki: motion_control::KI,
-            kd: motion_control::KD
+            v_kp: motion_control::V_KP,
+            b_kp: motion_control::B_KP,
+            b_kd: motion_control::B_KD
         }
     }
 }
@@ -44,7 +44,8 @@ impl Pars {
 pub struct HC05<'a> {
     pub tx: Tx<USART2>,
     pub rx_circbuf: dma::CircBuffer<[u8; 7], RxDma2>,
-    data: &'a mpu6050::Data,
+    mpu6050_data: &'a mpu6050::Data,
+    mc_data:&'a motion_control::Data,
     pub pars: &'a mut Pars
 }
 
@@ -60,7 +61,8 @@ impl<'a> HC05<'a> {
         apb: &mut APB1,
         channels: Channels,
         pars: &'a mut Pars,
-        data: &'a mpu6050::Data
+        mpu6050_data: &'a mpu6050::Data,
+        mc_data: &'a motion_control::Data
     ) -> Self {
         
         let serial = Serial::usart2(
@@ -80,32 +82,36 @@ impl<'a> HC05<'a> {
         HC05 {
             tx,
             rx_circbuf,
-            data,
+            mpu6050_data,
+            mc_data,
             pars
         }
     }
 
     pub fn send_packets(&mut self) {
 
-        let angle_buf = f32_to_u8(self.data.angle);
-        let kp_buf = f32_to_u8(self.pars.kp);
-        let ki_buf = f32_to_u8(self.pars.ki);
-        let kd_buf = f32_to_u8(self.pars.kd);
+        let angle_buf = f32_to_u8(self.mpu6050_data.angle);
+        let gyro_buf = f32_to_u8(self.mpu6050_data.gyro);
+        let v_kp_buf = f32_to_u8(self.pars.v_kp);
+        let b_kp_buf = f32_to_u8(self.pars.b_kp);
+        let b_kd_buf = f32_to_u8(self.pars.b_kd);
         let mut check: u32 = 0;
 
         for i in 0..4 {
             check += angle_buf[i] as u32;
-            check += kp_buf[i] as u32;
-            check += ki_buf[i] as u32;
-            check += kd_buf[i] as u32;
+            check += gyro_buf[i] as u32;
+            check += v_kp_buf[i] as u32;
+            check += b_kp_buf[i] as u32;
+            check += b_kd_buf[i] as u32;
         }
 
-        let buffer: [u8; 19] = [
+        let buffer: [u8; 23] = [
             0xA5,
             angle_buf[0], angle_buf[1], angle_buf[2], angle_buf[3],
-            kp_buf[0], kp_buf[1], kp_buf[2], kp_buf[3],
-            ki_buf[0], ki_buf[1], ki_buf[2], ki_buf[3],
-            kd_buf[0], kd_buf[1], kd_buf[2], kd_buf[3],
+            gyro_buf[0], gyro_buf[1], gyro_buf[2], gyro_buf[3],
+            v_kp_buf[0], v_kp_buf[1], v_kp_buf[2], v_kp_buf[3],
+            b_kp_buf[0], b_kp_buf[1], b_kp_buf[2], b_kp_buf[3],
+            b_kd_buf[0], b_kd_buf[1], b_kd_buf[2], b_kd_buf[3],
             get_the_lowest_byte(check),
             0x5A
         ];
@@ -126,27 +132,27 @@ impl<'a> HC05<'a> {
         let data = self.rx_circbuf.peek(|half, _| *half).unwrap();
         if let Ok(_) = data_check(&data)  {
             if data[1] == 1 {
-                self.pars.angle_offset += 0.001;
+                self.pars.angle_offset += 0.002;
             } else if data[1] == 2 {
-                self.pars.angle_offset -= 0.001;
+                self.pars.angle_offset -= 0.002;
             }
     
             if data[2] == 1 {
-                self.pars.kp += 10.0;
+                self.pars.v_kp += 0.02;
             } else if data[2] == 2 {
-                self.pars.kp -= 10.0;
+                self.pars.v_kp -= 0.02;
             }
     
             if data[3] == 1 {
-                self.pars.ki += 1.0;
+                self.pars.b_kp += 5.0;
             } else if data[3] == 2 {
-                self.pars.ki -= 1.0;
+                self.pars.b_kp -= 5.0;
             }
     
             if data[4] == 1 {
-                self.pars.kd += 5.0;
+                self.pars.b_kd += 2.0;
             } else if data[4] == 2 {
-                self.pars.kd -= 5.0;
+                self.pars.b_kd -= 2.0;
             }
         }
     }

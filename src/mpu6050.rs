@@ -14,14 +14,15 @@ use crate::hc05;
 
 type LEDPIN = gpiob::PB5<Output<PushPull>>;
 
-static Y_GYRO_OFFSET: i32 = 94;
+static Y_GYRO_OFFSET: i32 = 12;
 static X_ACC_OFFSET: i32 = -1580;
 static Z_ACC_OFFSET: i32 = -1045;
 
+static FILTER_PAR: f32 = 0.12;
 
-pub static ANGLE_OFFSET: f32 = 0.033;
+pub static ANGLE_OFFSET: f32 = 0.053;
 
-pub static UNIT_TIME: u32 = 100;//ms
+pub static UNIT_TIME: u32 = 50;//ms
 static UT_S: f32 = (UNIT_TIME as f32) / 1000.0;//s
 
 pub struct MPU6050<'a> {
@@ -38,7 +39,7 @@ pub struct MPU6050<'a> {
 pub struct Data {
     pub acc_x: i32,
     pub acc_z: i32,
-    pub gyro_y: f32,
+    pub gyro: f32,
     pub angle: f32,//经过计算的角度
 }
 
@@ -48,7 +49,7 @@ impl Data {
         Data {
             acc_x: 0,
             acc_z: 0,
-            gyro_y: 0.0,
+            gyro: 0.0,
             angle: 0.0,
         }
     }
@@ -160,6 +161,12 @@ impl<'a> MPU6050<'a> {
         0.02 * angle_m + 0.98 * (self.data.angle + gyro_m * UT_S) + self.pars.angle_offset
     }
 
+    fn cal_gyro(&self, new_angle: f32) -> f32 {
+        let new_gyro = (new_angle - self.data.angle) * (1000.0 / UNIT_TIME as f32);
+
+        FILTER_PAR * new_gyro + (1.0 - FILTER_PAR) * self.data.gyro
+    }
+
     pub fn refresh(&mut self) {
         self.led.set_low().ok();
 
@@ -167,10 +174,11 @@ impl<'a> MPU6050<'a> {
         let acc_z = self.get_accel_z();
         let gyro_y = self.get_gyro_y();
         let angle =  self.cal_angle(acc_x, acc_z, gyro_y);
+        let gyro = self.cal_gyro(angle);
         let data = Data {
             acc_x,
             acc_z,
-            gyro_y,
+            gyro,
             angle,
         };
         self.led.set_high().ok();

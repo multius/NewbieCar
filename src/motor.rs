@@ -8,9 +8,9 @@ use stm32f1xx_hal::gpio::{Alternate, PushPull, Output};
 
 use embedded_hal::digital::v2::OutputPin;
 
-static MAX_SPEED: u32 = 10000;
+static MAX_SPEED: u32 = 8000;
 static MIN_SPEED: u32 = 15;
-static MAX_ACC: i32 = 600;
+static MAX_ACC: i32 = 1000;
 
 
 pub struct Motors {
@@ -19,7 +19,7 @@ pub struct Motors {
         PA1<Alternate<PushPull>>
     )>,
     dirpins: (PD1<Output<PushPull>>, PD15<Output<PushPull>>),
-    speed: i32
+    velocity: i32
 }
 
 impl Motors {
@@ -40,7 +40,7 @@ impl Motors {
         Motors {
             pwm,
             dirpins,
-            speed: 0
+            velocity: 0
         }
     }
 
@@ -54,30 +54,30 @@ impl Motors {
         }
     }
 
-    pub fn set_speed(&mut self, mut speed: i32) {
-        if (speed - self.speed).abs() >= MAX_ACC {
-            if speed > self.speed {
-                speed = self.speed + MAX_ACC
+    pub fn set_velocity(&mut self, mut velocity: i32) {
+        if (velocity - self.velocity).abs() >= MAX_ACC {
+            if velocity > self.velocity {
+                velocity = self.velocity + MAX_ACC
             } else {
-                speed = self.speed - MAX_ACC
+                velocity = self.velocity - MAX_ACC
             }
         }
 
-        if speed > 0 {
+        if velocity > 0 {
             self.set_dir(true)
         } else {
             self.set_dir(false)
         }
 
-        self.speed = speed;
-        let speed = speed.abs() as u32;
+        self.velocity = velocity;
+        let velocity = velocity.abs() as u32;
 
-        if speed < MIN_SPEED {
+        if velocity < MIN_SPEED {
             self.pwm.set_period(MIN_SPEED.hz())
-        } else if speed >= MAX_SPEED {
+        } else if velocity >= MAX_SPEED {
             self.pwm.set_period(MAX_SPEED.hz())
         } else {
-            self.pwm.set_period(speed.hz())
+            self.pwm.set_period(velocity.hz())
         }
     }
 }

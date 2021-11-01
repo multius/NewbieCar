@@ -44,7 +44,8 @@ static G_MOTIONCON: Mutex<RefCell<Option<motion_control::MotionCon>>> = Mutex::n
 
 static mut G_PARS: MaybeUninit<hc05::Pars> = MaybeUninit::uninit();
 // static mut G_STATE: MaybeUninit<motion_control::StateType> = MaybeUninit::uninit();
-static mut G_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
+static mut G_MPU6050_DATA: MaybeUninit<mpu6050::Data> = MaybeUninit::uninit();
+static mut G_MC_DATA: MaybeUninit<motion_control::Data> = MaybeUninit::uninit();
 
 
 //----------------------------------------定时器中断函数
@@ -132,7 +133,8 @@ fn init() -> hc05::HC05<'static> {
 
     //------------------------------------全局变量初始化
     unsafe {
-        *get_mut_ptr!(G_DATA) = mpu6050::Data::new();
+        *get_mut_ptr!(G_MPU6050_DATA) = mpu6050::Data::new();
+        *get_mut_ptr!(G_MC_DATA) = motion_control::Data::new();
         // *get_mut_ptr!(G_STATE) = motion_control::StateType::new();
         *get_mut_ptr!(G_PARS) = hc05::Pars::new();
     }
@@ -147,7 +149,7 @@ fn init() -> hc05::HC05<'static> {
         gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl),
         gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl),
         gpiob.pb5.into_push_pull_output(&mut gpiob.crl),
-        unsafe { get_mut_ptr!(G_DATA) }, //获取全局DATA的控制权
+        unsafe { get_mut_ptr!(G_MPU6050_DATA) }, //获取全局DATA的控制权
         unsafe { get_ptr!(G_PARS) } //获取全局PARS的读取权
     );
 
@@ -171,9 +173,10 @@ fn init() -> hc05::HC05<'static> {
 
     let motion_con = MotionCon::init(
         motors,
-        unsafe { get_ptr!(G_DATA) },
+        unsafe { get_ptr!(G_MPU6050_DATA) },
         unsafe { get_ptr!(G_PARS) }, //获取全部全局变量的读取权
-        mpu6050
+        mpu6050,
+        unsafe { get_mut_ptr!(G_MC_DATA) }
     );
 
     let hc05 = hc05::HC05::init(
@@ -185,7 +188,8 @@ fn init() -> hc05::HC05<'static> {
         &mut rcc.apb1,
         channels,
         unsafe { get_mut_ptr!(G_PARS) },//获取全局PARS的控制权
-        unsafe { get_ptr!(G_DATA) }//获取全局DATA的读取权
+        unsafe { get_ptr!(G_MPU6050_DATA) },//获取全局MPU6050_DATA的读取权
+        unsafe{ get_ptr!(G_MC_DATA) }//获取全局MC_DATA的读取权
     );
 
 

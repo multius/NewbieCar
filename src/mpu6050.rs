@@ -18,9 +18,9 @@ static Y_GYRO_OFFSET: i32 = 12;
 static X_ACC_OFFSET: i32 = -1580;
 static Z_ACC_OFFSET: i32 = -1045;
 
-static FILTER_PAR: f32 = 0.12;
+static FILTER_PAR: f32 = 0.5;
 
-pub static ANGLE_OFFSET: f32 = 0.053;
+pub static ANGLE_OFFSET: f32 = 0.005;
 
 pub static UNIT_TIME: u32 = 50;//ms
 static UT_S: f32 = (UNIT_TIME as f32) / 1000.0;//s

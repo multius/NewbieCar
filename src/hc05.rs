@@ -26,8 +26,9 @@ use crate::mpu6050;
 pub struct Pars {
     pub angle_offset: f32,
     pub v_kp: f32,
+    pub v_kd: f32,
     pub b_kp: f32,
-    pub b_kd: f32
+    pub b_ki: f32
 }
 
 impl Pars {
@@ -35,8 +36,9 @@ impl Pars {
         Pars {
             angle_offset: mpu6050::ANGLE_OFFSET,
             v_kp: motion_control::V_KP,
+            v_kd: motion_control::V_KD,
             b_kp: motion_control::B_KP,
-            b_kd: motion_control::B_KD
+            b_ki: motion_control::B_KI
         }
     }
 }
@@ -91,27 +93,30 @@ impl<'a> HC05<'a> {
     pub fn send_packets(&mut self) {
 
         let angle_buf = f32_to_u8(self.mpu6050_data.angle);
-        let gyro_buf = f32_to_u8(self.mpu6050_data.gyro);
+        let angle_i_buf = f32_to_u8(self.mc_data.angle_i);
         let v_kp_buf = f32_to_u8(self.pars.v_kp);
+        let v_kd_buf = f32_to_u8(self.pars.v_kd);
         let b_kp_buf = f32_to_u8(self.pars.b_kp);
-        let b_kd_buf = f32_to_u8(self.pars.b_kd);
+        let b_ki_buf = f32_to_u8(self.pars.b_ki);
         let mut check: u32 = 0;
 
         for i in 0..4 {
             check += angle_buf[i] as u32;
-            check += gyro_buf[i] as u32;
+            check += angle_i_buf[i] as u32;
             check += v_kp_buf[i] as u32;
+            check += v_kd_buf[i] as u32;
             check += b_kp_buf[i] as u32;
-            check += b_kd_buf[i] as u32;
+            check += b_ki_buf[i] as u32;
         }
 
-        let buffer: [u8; 23] = [
+        let buffer: [u8; 27] = [
             0xA5,
             angle_buf[0], angle_buf[1], angle_buf[2], angle_buf[3],
-            gyro_buf[0], gyro_buf[1], gyro_buf[2], gyro_buf[3],
+            angle_i_buf[0], angle_i_buf[1], angle_i_buf[2], angle_i_buf[3],
             v_kp_buf[0], v_kp_buf[1], v_kp_buf[2], v_kp_buf[3],
+            v_kd_buf[0], v_kd_buf[1], v_kd_buf[2], v_kd_buf[3],
             b_kp_buf[0], b_kp_buf[1], b_kp_buf[2], b_kp_buf[3],
-            b_kd_buf[0], b_kd_buf[1], b_kd_buf[2], b_kd_buf[3],
+            b_ki_buf[0], b_ki_buf[1], b_ki_buf[2], b_ki_buf[3],
             get_the_lowest_byte(check),
             0x5A
         ];
@@ -135,12 +140,16 @@ impl<'a> HC05<'a> {
                 self.pars.angle_offset += 0.002;
             } else if data[1] == 2 {
                 self.pars.angle_offset -= 0.002;
-            }
+            } 
     
             if data[2] == 1 {
                 self.pars.v_kp += 0.02;
             } else if data[2] == 2 {
                 self.pars.v_kp -= 0.02;
+            } else if data[2] == 3 {
+                self.pars.v_kd += 0.02;
+            } else if data[2] == 4 {
+                self.pars.v_kd -= 0.02;
             }
     
             if data[3] == 1 {
@@ -150,9 +159,9 @@ impl<'a> HC05<'a> {
             }
     
             if data[4] == 1 {
-                self.pars.b_kd += 2.0;
+                self.pars.b_ki += 2.0;
             } else if data[4] == 2 {
-                self.pars.b_kd -= 2.0;
+                self.pars.b_ki -= 2.0;
             }
         }
     }

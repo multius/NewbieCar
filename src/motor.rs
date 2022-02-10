@@ -6,7 +6,7 @@ use stm32f1xx_hal::gpio::gpioa::{PA0, PA1};
 use stm32f1xx_hal::gpio::gpiod::{PD1, PD15};
 use stm32f1xx_hal::gpio::{Alternate, PushPull, Output};
 
-use embedded_hal::digital::v2::OutputPin;
+// use embedded_hal::digital::v2::OutputPin;
 
 static MAX_SPEED: u32 = 8000;
 static MIN_SPEED: u32 = 15;
@@ -46,11 +46,11 @@ impl Motors {
 
     fn set_dir(&mut self, forward: bool) {
         if forward {
-            self.dirpins.0.set_high().ok();
-            self.dirpins.1.set_low().ok();
+            self.dirpins.0.set_high();
+            self.dirpins.1.set_low();
         } else {
-            self.dirpins.0.set_low().ok();
-            self.dirpins.1.set_high().ok();
+            self.dirpins.0.set_low();
+            self.dirpins.1.set_high();
         }
     }
 

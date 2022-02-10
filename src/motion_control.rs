@@ -3,12 +3,14 @@ use crate::motor;
 
 
 pub static B_KP: f32 = 1200.0;
-pub static B_KI: f32 = 100.0;
+pub static B_KI: f32 = 30.0;
 // pub static B_KD: f32 = 0.0;
 
 pub static V_KP: f32 = 1.0;
 pub static V_KD: f32 = 0.0;
 
+
+static MAX_ANGLE_I: f32 = 10000.0;
 // static FILTER_PAR: f32 = 0.9;
 
 pub struct MotionCon<'a> {
@@ -70,7 +72,7 @@ impl<'a> MotionCon<'a> {
         let v = v as f32;
         let d_v = d_v as f32;
 
-        (V_KP * v - self.pars.v_kd * d_v) as i32
+        return (V_KP * v - self.pars.v_kd * d_v) as i32
     }
 
     pub fn adjust_motion(&mut self, _target_angle: f32) {

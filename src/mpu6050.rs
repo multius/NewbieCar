@@ -61,7 +61,6 @@ impl<'a> MPU6050<'a> {
         i2c: I2C1,
         mapr: &mut MAPR,
         clocks: rcc::Clocks,
-        apb: &mut APB1,
         pb6: PB6<Alternate<OpenDrain>>,
         pb7: PB7<Alternate<OpenDrain>>,
         led: LEDPIN,
@@ -74,7 +73,6 @@ impl<'a> MPU6050<'a> {
             mapr,
             i2c::Mode::fast(400.khz(), i2c::DutyCycle::Ratio2to1),
             clocks,
-            apb,
             1000,
             1,
             1000,
@@ -168,7 +166,7 @@ impl<'a> MPU6050<'a> {
     }
 
     pub fn refresh(&mut self) {
-        self.led.set_low().ok();
+        self.led.set_low();
 
         let acc_x = self.get_accel_x();
         let acc_z = self.get_accel_z();
@@ -181,7 +179,7 @@ impl<'a> MPU6050<'a> {
             gyro,
             angle,
         };
-        self.led.set_high().ok();
+        self.led.set_high();
 
         *self.data = data;
     }

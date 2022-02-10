@@ -1,11 +1,11 @@
 use core::{fmt::Write, panic};
 
 // use cortex_m::{itm::write_fmt, peripheral::mpu};
-use nb::block;
+// use nb::block;
 
-use stm32f1xx_hal::{dma::Transfer, prelude::*};
+use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::serial::*;
-use stm32f1xx_hal::{rcc, rcc::APB1};
+use stm32f1xx_hal::rcc;
 use stm32f1xx_hal::pac::USART2;
 use stm32f1xx_hal::afio::MAPR;
 use stm32f1xx_hal::dma::dma1::Channels;
@@ -60,7 +60,6 @@ impl<'a> HC05<'a> {
         rxpin: PA3<Input<Floating>>,
         mapr: &mut MAPR,
         clocks: rcc::Clocks,
-        apb: &mut APB1,
         channels: Channels,
         pars: &'a mut Pars,
         mpu6050_data: &'a mpu6050::Data,
@@ -73,7 +72,6 @@ impl<'a> HC05<'a> {
             mapr,
             Config::default().baudrate(BAUDRATE.bps()),
             clocks,
-            apb
         );
         let (tx, rx) = serial.split();
         let rx = rx.with_dma(channels.6);

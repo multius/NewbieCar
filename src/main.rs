@@ -96,9 +96,9 @@ fn init() -> hc05::HC05<'static> {
     let dp = pac::Peripherals::take().unwrap();
 
     let mut flash = dp.FLASH.constrain();
-    let mut rcc = dp.RCC.constrain();
-    let mut afio = dp.AFIO.constrain(&mut rcc.apb2);
-    let channels = dp.DMA1.split(&mut rcc.ahb);
+    let rcc = dp.RCC.constrain();
+    let mut afio = dp.AFIO.constrain();
+    let channels = dp.DMA1.split();
 
     let clocks = rcc
         .cfgr
@@ -106,9 +106,9 @@ fn init() -> hc05::HC05<'static> {
         .pclk1(32.mhz())
         .freeze(&mut flash.acr);
 
-    let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
-    let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
-    let mut gpiod = dp.GPIOD.split(&mut rcc.apb2);
+    let mut gpiob = dp.GPIOB.split();
+    let mut gpioa = dp.GPIOA.split();
+    let mut gpiod = dp.GPIOD.split();
 
     let mut delay = Delay::new(cp.SYST, clocks);
 
@@ -118,7 +118,8 @@ fn init() -> hc05::HC05<'static> {
 
 
     //-------------------------------------定时器初始化
-    let motor_pwm = Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1).pwm::<Tim2NoRemap, _, _, _>(
+    let motor_pwm =
+        Timer::tim2(dp.TIM2, &clocks).pwm::<Tim2NoRemap, _, _, _>(
         (
             gpioa.pa0.into_alternate_push_pull(&mut gpioa.crl),
             gpioa.pa1.into_alternate_push_pull(&mut gpioa.crl),
@@ -127,7 +128,7 @@ fn init() -> hc05::HC05<'static> {
         1.hz(),
     );
 
-    let mut tim3 = Timer::tim3(dp.TIM3, &clocks, &mut rcc.apb1)
+    let mut tim3 = Timer::tim3(dp.TIM3, &clocks)
         .start_count_down(mpu6050::UNIT_TIME.ms());
 
 
@@ -145,7 +146,6 @@ fn init() -> hc05::HC05<'static> {
         dp.I2C1,
         &mut afio.mapr,
         clocks,
-        &mut rcc.apb1,
         gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl),
         gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl),
         gpiob.pb5.into_push_pull_output(&mut gpiob.crl),
@@ -185,7 +185,6 @@ fn init() -> hc05::HC05<'static> {
         gpioa.pa3,
         &mut afio.mapr,
         clocks,
-        &mut rcc.apb1,
         channels,
         unsafe { get_mut_ptr!(G_PARS) },//获取全局PARS的控制权
         unsafe { get_ptr!(G_MPU6050_DATA) },//获取全局MPU6050_DATA的读取权
